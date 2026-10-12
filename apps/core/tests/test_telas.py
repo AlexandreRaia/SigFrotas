@@ -98,8 +98,8 @@ class CadastrosTest(TelasTest):
         self.assertTrue(CentroCusto.objects.filter(municipio=self.a, codigo='200').exists())
 
     def test_nao_edita_nem_inativa_registro_de_outra_prefeitura(self):
-        self.assertEqual(self.client.get(f'/secretarias/{self.sec_b.pk}/').status_code, 404)
-        self.assertEqual(self.client.post(f'/secretarias/{self.sec_b.pk}/', {'sigla': 'X', 'nome': 'X'}).status_code, 404)
+        self.assertEqual(self.client.get(f'/secretarias/{self.sec_b.pk}/editar/').status_code, 404)
+        self.assertEqual(self.client.post(f'/secretarias/{self.sec_b.pk}/editar/', {'sigla': 'X', 'nome': 'X'}).status_code, 404)
         self.assertEqual(self.client.post(f'/secretarias/{self.sec_b.pk}/alternar/').status_code, 404)
         usar_papel_da_aplicacao(self.b.id)  # confere como a propria prefeitura B
         self.sec_b.refresh_from_db()

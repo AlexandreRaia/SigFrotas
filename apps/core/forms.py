@@ -2,6 +2,7 @@ from django import forms
 from django.conf import settings
 from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError
+from django.core.validators import MaxLengthValidator
 
 from .models import CentroCusto, Secretaria, Unidade, Usuario
 
@@ -21,14 +22,35 @@ class LoginForm(forms.Form):
 class FormularioDaPrefeitura(forms.ModelForm):
     """Formulario de cadastro da prefeitura logada. `unicos` lista combinacoes de campos que nao podem repetir."""
     unicos = ()
+    aceita_pontuacao = {}  # campo -> tamanho maximo digitado (CPF/CNPJ/CEP chegam com pontuacao e sao guardados so com numeros)
+    grupos = ()            # ((titulo, (campos...)), ...): divide formularios longos em secoes de varias colunas
+
+    def agrupados(self):
+        """[(titulo, [(campo, largo)])]. Campo que nao entrou em nenhum grupo vai para "Outros" (nunca some da tela)."""
+        usados, resultado = set(), []
+        for titulo, nomes in self.grupos:
+            campos = [self[n] for n in nomes if n in self.fields]
+            usados.update(nomes)
+            if campos:
+                resultado.append((titulo, [(c, isinstance(c.field.widget, forms.Textarea)) for c in campos]))
+        restantes = [c for c in self if c.name not in usados and not c.is_hidden]
+        if resultado and restantes:
+            resultado.append(('Outros', [(c, isinstance(c.field.widget, forms.Textarea)) for c in restantes]))
+        return resultado
 
     def __init__(self, *args, municipio_id, **kwargs):
         super().__init__(*args, **kwargs)
         self.instance.municipio_id = municipio_id
+        for nome, limite in self.aceita_pontuacao.items():
+            campo = self.fields[nome]
+            campo.max_length = limite
+            campo.widget.attrs['maxlength'] = limite
+            campo.validators = [v for v in campo.validators if not isinstance(v, MaxLengthValidator)]
+            campo.validators.append(MaxLengthValidator(limite))
         for campo in self.fields.values():  # listas de escolha so mostram registros da propria prefeitura
             queryset = getattr(campo, 'queryset', None)
-            if queryset is not None:
-                campo.queryset = queryset.filter(municipio_id=municipio_id)
+            if queryset is not None and any(f.name == 'municipio' for f in queryset.model._meta.fields):
+                campo.queryset = queryset.filter(municipio_id=municipio_id)  # catalogos globais ficam como estao
 
     def clean(self):
         dados = super().clean()
@@ -85,14 +107,28 @@ class UsuarioEdicaoForm(FormularioDaPrefeitura):
 
     class Meta:
         model = Usuario
-        fields = ['nome', 'email', 'perfil', 'secretaria', 'unidade', 'matricula']
+        fields = ['nome', 'email', 'perfil', 'secretaria', 'unidade', 'matricula', 'fornecedor']
         labels = {'nome': 'Nome', 'email': 'E-mail', 'perfil': 'Perfil', 'secretaria': 'Secretaria',
-                  'unidade': 'Unidade', 'matricula': 'Matrícula'}
+                  'unidade': 'Unidade', 'matricula': 'Matrícula', 'fornecedor': 'Oficina'}
         help_texts = {'email': 'Usado para entrar no sistema.',
                       'perfil': 'Define o que a pessoa pode fazer.',
                       'secretaria': 'Opcional. Limita o que a pessoa enxerga à sua secretaria.',
-                      'unidade': 'Opcional.'}
+                      'unidade': 'Opcional.',
+                      'fornecedor': 'Só para o perfil Oficina: a oficina (fornecedor) que a pessoa representa.'}
         widgets = {'nome': forms.TextInput}
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['fornecedor'].queryset = self.fields['fornecedor'].queryset.filter(tipo='OFICINA', ativo=True)
+
+    def clean(self):
+        dados = super().clean()
+        perfil, fornecedor = dados.get('perfil'), dados.get('fornecedor')
+        if perfil and perfil.codigo == 'OFICINA' and not fornecedor:
+            self.add_error('fornecedor', 'Informe a oficina que este usuário representa.')
+        if perfil and perfil.codigo != 'OFICINA' and fornecedor:
+            self.add_error('fornecedor', 'Só o perfil Oficina é ligado a uma oficina.')
+        return dados
 
 
 class UsuarioNovoForm(UsuarioEdicaoForm):

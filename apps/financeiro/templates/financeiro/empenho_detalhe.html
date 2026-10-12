@@ -1,0 +1,68 @@
+{% extends 'base.html' %}
+{% load sigfrotas %}
+{% block titulo %}Empenho {{ empenho }} · SigFrotas{% endblock %}
+{% block conteudo %}
+<div class="mb-6 flex flex-wrap items-center justify-between gap-3">
+  <div>
+    <h1 class="text-2xl font-semibold tracking-tight">Empenho {{ empenho }}
+      {% if empenho.ativo %}<span class="selo-ativo ml-2 align-middle">Ativo</span>{% else %}<span class="selo-inativo ml-2 align-middle">Inativo</span>{% endif %}</h1>
+    <p class="text-slate-600">{{ empenho.get_finalidade_display }} · {{ empenho.centro_custo }}{% if empenho.contrato %} · Contrato {{ empenho.contrato.numero }} ({{ empenho.contrato.fornecedor }}){% endif %}</p>
+    <p class="text-slate-600">Período: {{ empenho.vigencia_ini|data_br }} a {{ empenho.vigencia_fim|data_br }}{% if empenho.data_empenho %} · Empenhado em {{ empenho.data_empenho|data_br }}{% endif %}</p>
+    {% if empenho.empenho_origem %}<p class="text-slate-600">Prorroga o empenho <a class="link-acao" href="{% url 'empenhos_detalhe' empenho.empenho_origem.pk %}">{{ empenho.empenho_origem }}</a>.</p>{% endif %}
+  </div>
+  {% if pode_gerir %}
+  <div class="flex gap-3">
+    <a href="{% url 'empenhos_editar' empenho.pk %}" class="btn-secundario">Editar</a>
+    <a href="{% url 'empenhos_novo' %}?prorroga={{ empenho.pk }}" class="btn-primario">Prorrogar</a>
+  </div>
+  {% endif %}
+</div>
+
+<div class="mb-8 grid grid-cols-2 gap-4 lg:grid-cols-3">
+  <div class="cartao p-4"><p class="text-sm text-slate-600">Empenhado</p><p class="whitespace-nowrap text-xl font-semibold">{{ saldo.valor_empenhado|moeda }}</p></div>
+  <div class="cartao p-4"><p class="text-sm text-slate-600">Liberado</p><p class="whitespace-nowrap text-xl font-semibold">{{ saldo.liberado|moeda }}</p></div>
+  <div class="cartao p-4"><p class="text-sm text-slate-600">Reservado</p><p class="whitespace-nowrap text-xl font-semibold">{{ saldo.reservado|moeda }}</p></div>
+  <div class="cartao p-4"><p class="text-sm text-slate-600">Consumido</p><p class="whitespace-nowrap text-xl font-semibold">{{ saldo.consumido|moeda }}</p></div>
+  <div class="cartao p-4"><p class="text-sm text-slate-600">Estornado</p><p class="whitespace-nowrap text-xl font-semibold">{{ saldo.estornado|moeda }}</p></div>
+  <div class="cartao border-primaria-700 p-4"><p class="text-sm text-slate-600">Saldo disponível</p><p class="whitespace-nowrap text-xl font-bold text-primaria-800">{{ saldo.saldo|moeda }}</p></div>
+</div>
+
+<h2 class="mb-3 text-xl font-semibold">Liberações</h2>
+<div class="cartao mb-4 overflow-x-auto">
+  <table class="w-full text-left">
+    <thead class="border-b border-slate-200 bg-slate-50 text-slate-600"><tr><th class="px-4 py-3 font-semibold">Data</th><th class="px-4 py-3 font-semibold">Valor</th><th class="px-4 py-3 font-semibold">Observação</th><th class="px-4 py-3 font-semibold">Registrada por</th></tr></thead>
+    <tbody class="divide-y divide-slate-100">
+      {% for l in liberacoes %}<tr><td class="px-4 py-3">{{ l.data|data_br }}</td><td class="px-4 py-3">{{ l.valor|moeda }}</td><td class="px-4 py-3">{{ l.observacao }}</td><td class="px-4 py-3">{{ l.criado_por|default_if_none:"sistema" }}</td></tr>
+      {% empty %}<tr><td colspan="4" class="px-4 py-6 text-center text-slate-600">Nada liberado ainda.</td></tr>{% endfor %}
+    </tbody>
+  </table>
+</div>
+{% if pode_gerir and empenho.ativo %}
+<form method="post" action="{% url 'empenhos_liberar' empenho.pk %}" class="filtro cartao mb-8 flex flex-wrap items-end gap-4 p-4">
+  {% csrf_token %}
+  {% for campo in form_liberacao %}
+    <div><label for="{{ campo.id_for_label }}" class="mb-1 block font-medium">{{ campo.label }}</label>{{ campo }}
+      {% if campo.errors %}<div class="mt-1 text-sm font-medium text-red-700">{{ campo.errors }}</div>{% endif %}</div>
+  {% endfor %}
+  <button class="btn-primario">Liberar valor</button>
+</form>
+{% endif %}
+
+<h2 class="mb-3 text-xl font-semibold">Lançamentos</h2>
+<div class="cartao mb-8 overflow-x-auto">
+  <table class="w-full text-left">
+    <thead class="border-b border-slate-200 bg-slate-50 text-slate-600"><tr><th class="px-4 py-3 font-semibold">Quando</th><th class="px-4 py-3 font-semibold">Tipo</th><th class="px-4 py-3 font-semibold">Valor</th><th class="px-4 py-3 font-semibold">Origem</th><th class="px-4 py-3 font-semibold">Observação</th></tr></thead>
+    <tbody class="divide-y divide-slate-100">
+      {% for l in lancamentos %}<tr><td class="whitespace-nowrap px-4 py-3">{{ l.criado_em|date:"d/m/Y H:i" }}</td><td class="px-4 py-3">{{ l.get_tipo_display }}</td><td class="px-4 py-3">{{ l.valor|moeda }}</td>
+        <td class="px-4 py-3">{% if l.orcamento_id %}Orçamento {{ l.orcamento_id }}{% elif l.abastecimento_id %}Abastecimento {{ l.abastecimento_id }}{% else %}-{% endif %}</td><td class="px-4 py-3">{{ l.observacao }}</td></tr>
+      {% empty %}<tr><td colspan="5" class="px-4 py-6 text-center text-slate-600">Nenhum lançamento. As reservas e os consumos aparecem aqui quando a manutenção e o abastecimento usarem o saldo.</td></tr>{% endfor %}
+    </tbody>
+  </table>
+</div>
+
+{% if prorrogacoes %}
+<h2 class="mb-3 text-xl font-semibold">Prorrogações</h2>
+<ul class="mb-8 list-disc pl-6">{% for p in prorrogacoes %}<li><a class="link-acao" href="{% url 'empenhos_detalhe' p.pk %}">{{ p }}</a> · {{ p.valor_empenhado|moeda }} · {{ p.vigencia_ini|data_br }} a {{ p.vigencia_fim|data_br }}</li>{% endfor %}</ul>
+{% endif %}
+<a href="{% url 'empenhos_lista' %}" class="link-acao">&larr; Voltar para os empenhos</a>
+{% endblock %}

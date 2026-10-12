@@ -1,0 +1,119 @@
+{% extends 'base.html' %}
+{% load sigfrotas %}
+{% block titulo %}{{ veiculo.placa }} · SigFrotas{% endblock %}
+{% block conteudo %}
+{% include 'core/_cabecalho_detalhe.html' with titulo=veiculo.placa subtitulo=veiculo.modelo situacao=veiculo.get_situacao_display %}
+<div class="mb-6 flex flex-wrap items-center gap-3">
+  {% if pode_gerir %}<a href="{% url 'veiculos_editar' veiculo.pk %}" class="btn-primario">Editar</a>{% endif %}
+  <a href="{% url 'veiculos_lista' %}" class="btn-secundario">Voltar à lista</a>
+</div>
+
+<div class="mb-8 grid gap-6 lg:grid-cols-2">
+  <section class="cartao p-5">
+    <h2 class="mb-3 text-lg font-semibold">Identificação</h2>
+    <dl class="grid grid-cols-[10rem_1fr] gap-x-4 gap-y-1">
+      <dt class="text-slate-600">Placa</dt><dd>{{ veiculo.placa }}</dd>
+      <dt class="text-slate-600">Prefixo</dt><dd>{{ veiculo.prefixo|default:"-" }}</dd>
+      <dt class="text-slate-600">Patrimônio</dt><dd>{{ veiculo.patrimonio|default:"-" }}</dd>
+      <dt class="text-slate-600">RENAVAM</dt><dd>{{ veiculo.renavam|default:"-" }}</dd>
+      <dt class="text-slate-600">Chassi</dt><dd>{{ veiculo.chassi|default:"-" }}</dd>
+      <dt class="text-slate-600">Categoria</dt><dd>{{ veiculo.categoria|default:"-" }}</dd>
+      <dt class="text-slate-600">Tipo de frota</dt><dd>{{ veiculo.get_tipo_frota_display }}</dd>
+      <dt class="text-slate-600">Proprietário</dt><dd>{{ veiculo.proprietario|default:"-" }}</dd>
+      <dt class="text-slate-600">Contrato de locação</dt><dd>{{ veiculo.contrato_locacao|default:"-" }}</dd>
+    </dl>
+  </section>
+  <section class="cartao p-5">
+    <h2 class="mb-3 text-lg font-semibold">Lotação atual</h2>
+    <dl class="grid grid-cols-[10rem_1fr] gap-x-4 gap-y-1">
+      <dt class="text-slate-600">Secretaria</dt><dd>{{ veiculo.secretaria|default:"-" }}</dd>
+      <dt class="text-slate-600">Unidade</dt><dd>{{ veiculo.unidade|default:"-" }}</dd>
+      <dt class="text-slate-600">Centro de custo</dt><dd>{{ veiculo.centro_custo|default:"-" }}</dd>
+      <dt class="text-slate-600">Km atual</dt><dd class="font-semibold">{{ veiculo.odometro_atual }}</dd>
+      {% if veiculo.horimetro_atual is not None %}<dt class="text-slate-600">Horímetro</dt><dd class="font-semibold">{{ veiculo.horimetro_atual }}</dd>{% endif %}
+    </dl>
+  </section>
+  <section class="cartao p-5">
+    <h2 class="mb-3 text-lg font-semibold">Dados técnicos</h2>
+    <dl class="grid grid-cols-[10rem_1fr] gap-x-4 gap-y-1">
+      <dt class="text-slate-600">Combustível</dt><dd>{{ veiculo.combustivel|default:"-" }}</dd>
+      <dt class="text-slate-600">Ano fab./modelo</dt><dd>{{ veiculo.ano_fabricacao|default:"-" }} / {{ veiculo.ano_modelo|default:"-" }}</dd>
+      <dt class="text-slate-600">Cor</dt><dd>{{ veiculo.cor|default:"-" }}</dd>
+      <dt class="text-slate-600">Motor</dt><dd>{{ veiculo.motor|default:"-" }}</dd>
+      <dt class="text-slate-600">Transmissão</dt><dd>{{ veiculo.get_transmissao_display|default:"-" }}</dd>
+      <dt class="text-slate-600">Tanque (litros)</dt><dd>{{ veiculo.capacidade_tanque|default:"-" }}</dd>
+      <dt class="text-slate-600">Consumo ref. (km/l)</dt><dd>{{ veiculo.consumo_referencia|default:"-" }}</dd>
+      <dt class="text-slate-600">Passageiros</dt><dd>{{ veiculo.capacidade_passageiros|default:"-" }}</dd>
+      <dt class="text-slate-600">Conservação</dt><dd>{{ veiculo.get_estado_conservacao_display|default:"-" }}</dd>
+    </dl>
+  </section>
+  <section class="cartao p-5">
+    <h2 class="mb-3 text-lg font-semibold">Valores</h2>
+    <dl class="grid grid-cols-[10rem_1fr] gap-x-4 gap-y-1">
+      <dt class="text-slate-600">FIPE</dt><dd>{{ veiculo.valor_fipe|moeda|default:"-" }}</dd>
+      <dt class="text-slate-600">Aquisição</dt><dd>{{ veiculo.valor_aquisicao|moeda|default:"-" }}</dd>
+      <dt class="text-slate-600">Data de aquisição</dt><dd>{{ veiculo.data_aquisicao|data_br|default:"-" }}</dd>
+      <dt class="text-slate-600">Aluguel mensal</dt><dd>{{ veiculo.valor_aluguel_mensal|moeda|default:"-" }}</dd>
+      {% if veiculo.data_baixa %}<dt class="text-slate-600">Baixa</dt><dd>{{ veiculo.data_baixa|data_br }} · {{ veiculo.motivo_baixa }}</dd>{% endif %}
+    </dl>
+  </section>
+</div>
+
+<div class="mb-8 grid gap-6 lg:grid-cols-2">
+  <section class="cartao p-5">
+    <h2 class="mb-3 text-lg font-semibold">Equipamentos</h2>
+    <ul class="mb-3 divide-y divide-slate-100">
+      {% for e in equipamentos %}
+      <li class="flex items-center justify-between py-2"><span>{{ e.descricao }}{% if e.observacao %} <span class="text-slate-600">· {{ e.observacao }}</span>{% endif %}</span>
+        {% if pode_gerir %}<form method="post" action="{% url 'veiculos_equipamento_excluir' veiculo.pk e.pk %}">{% csrf_token %}<button class="link-perigo">Remover</button></form>{% endif %}</li>
+      {% empty %}<li class="py-2 text-slate-600">Nenhum equipamento cadastrado.</li>{% endfor %}
+    </ul>
+    {% if pode_gerir %}
+    <form method="post" action="{% url 'veiculos_equipamento_novo' veiculo.pk %}" class="grid gap-3 sm:grid-cols-2">{% csrf_token %}
+      {% for campo in form_equipamento %}<div><label for="{{ campo.id_for_label }}" class="mb-1 block text-sm font-medium">{{ campo.label }}</label>{{ campo }}</div>{% endfor %}
+      <button class="btn-secundario justify-self-start sm:col-span-2">Adicionar</button>
+    </form>
+    {% endif %}
+  </section>
+  <section class="cartao p-5">
+    <h2 class="mb-3 text-lg font-semibold">Leituras de km{% if veiculo.usa_horimetro %} e horímetro{% endif %}</h2>
+    <table class="mb-3 w-full text-left">
+      <thead class="text-slate-600"><tr><th class="py-1 font-semibold">Quando</th><th class="py-1 font-semibold">Km</th>{% if veiculo.usa_horimetro %}<th class="py-1 font-semibold">Horímetro</th>{% endif %}<th class="py-1 font-semibold">Origem</th></tr></thead>
+      <tbody class="divide-y divide-slate-100">
+        {% for l in leituras %}<tr><td class="whitespace-nowrap py-1">{{ l.lido_em|date:"d/m/Y H:i" }}</td><td class="py-1">{{ l.odometro|default_if_none:"-" }}</td>{% if veiculo.usa_horimetro %}<td class="py-1">{{ l.horimetro|default_if_none:"-" }}</td>{% endif %}<td class="py-1">{{ l.get_origem_display }}</td></tr>
+        {% empty %}<tr><td colspan="4" class="py-2 text-slate-600">Nenhuma leitura.</td></tr>{% endfor %}
+      </tbody>
+    </table>
+    {% if pode_gerir %}
+    <form method="post" action="{% url 'veiculos_leitura_nova' veiculo.pk %}" class="grid gap-3 sm:grid-cols-2">{% csrf_token %}
+      {% for campo in form_leitura %}<div><label for="{{ campo.id_for_label }}" class="mb-1 block text-sm font-medium">{{ campo.label }}</label>{{ campo }}</div>{% endfor %}
+      <button class="btn-secundario justify-self-start sm:col-span-2">Registrar leitura</button>
+    </form>
+    <p class="mt-2 text-sm text-slate-600">O km não pode ser menor que o atual.</p>
+    {% endif %}
+  </section>
+</div>
+
+<div class="mb-8 grid gap-6 lg:grid-cols-2">
+  <section class="cartao p-5">
+    <h2 class="mb-3 text-lg font-semibold">Histórico de lotação</h2>
+    <ul class="divide-y divide-slate-100">
+      {% for l in lotacoes %}<li class="py-2">{{ l.inicio|data_br }} a {{ l.fim|data_br|default:"hoje" }}: {{ l.secretaria|default:"-" }}{% if l.unidade %} / {{ l.unidade }}{% endif %}{% if l.centro_custo %} · centro {{ l.centro_custo.codigo }}{% endif %}</li>
+      {% empty %}<li class="py-2 text-slate-600">Sem histórico.</li>{% endfor %}
+    </ul>
+  </section>
+  <section class="cartao p-5">
+    <h2 class="mb-3 text-lg font-semibold">Anexos</h2>
+    <ul class="mb-3 divide-y divide-slate-100">
+      {% for a in anexos %}<li class="flex items-center justify-between py-2"><a class="link-acao" href="{% url 'anexo_baixar' a.pk %}">{{ a.nome_arquivo }}</a><span class="text-slate-600">{{ a.categoria }} · {{ a.criado_em|date:"d/m/Y" }}</span></li>
+      {% empty %}<li class="py-2 text-slate-600">Nenhum arquivo (CRLV, fotos...).</li>{% endfor %}
+    </ul>
+    {% if pode_gerir %}
+    <form method="post" enctype="multipart/form-data" action="{% url 'veiculos_anexo_novo' veiculo.pk %}" class="grid gap-3 sm:grid-cols-2">{% csrf_token %}
+      {% for campo in form_anexo %}<div><label for="{{ campo.id_for_label }}" class="mb-1 block text-sm font-medium">{{ campo.label }}</label>{{ campo }}</div>{% endfor %}
+      <button class="btn-secundario justify-self-start sm:col-span-2">Enviar</button>
+    </form>
+    {% endif %}
+  </section>
+</div>
+{% endblock %}

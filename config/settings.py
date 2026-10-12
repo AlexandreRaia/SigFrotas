@@ -22,6 +22,10 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'apps.core',
+    'apps.financeiro',
+    'apps.frota',
+    'apps.pessoas',
+    'apps.importacao',
 ]
 
 MIDDLEWARE = [
@@ -108,5 +112,6 @@ STORAGES = {
 STATIC_URL = 'static/'
 STATIC_ROOT = BASE_DIR / 'staticfiles'
 STATICFILES_DIRS = [BASE_DIR / 'static']
+STATIC_ROOT.mkdir(exist_ok=True)  # o WhiteNoise avisa se a pasta nao existir (ela so enche no collectstatic)
 MEDIA_ROOT = BASE_DIR / 'media'  # em producao: armazenamento compativel com S3
 ANEXO_TAMANHO_MAXIMO = 20 * 1024 * 1024

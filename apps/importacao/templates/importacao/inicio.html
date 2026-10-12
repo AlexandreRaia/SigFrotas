@@ -1,0 +1,14 @@
+{% extends 'base.html' %}
+{% block titulo %}Importação · SigFrotas{% endblock %}
+{% block conteudo %}
+<h1 class="mb-2 text-2xl font-semibold tracking-tight">Importação de planilhas</h1>
+<p class="mb-6 text-slate-600">Cadastra vários registros de uma vez a partir de um arquivo CSV (no Excel: Salvar como → CSV). Primeiro você <strong>verifica</strong> o arquivo, sem gravar nada, e corrige o que for apontado. Só quando todas as linhas estiverem corretas é que a importação grava.</p>
+<div class="grid gap-6 sm:grid-cols-2">
+  {% if pode_veiculos %}
+  <a href="{% url 'importacao_veiculos' %}" class="cartao block p-5 hover:bg-slate-50"><h2 class="text-lg font-semibold">Veículos</h2><p class="text-slate-600">Placa, modelo, secretaria, centro de custo, km...</p></a>
+  {% endif %}
+  {% if pode_motoristas %}
+  <a href="{% url 'importacao_motoristas' %}" class="cartao block p-5 hover:bg-slate-50"><h2 class="text-lg font-semibold">Motoristas</h2><p class="text-slate-600">Prontuário, nome, CPF, CNH...</p></a>
+  {% endif %}
+</div>
+{% endblock %}

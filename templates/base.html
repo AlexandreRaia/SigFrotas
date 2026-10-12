@@ -1,4 +1,4 @@
-{% load static %}<!doctype html>
+{% load static sigfrotas %}<!doctype html>
 <html lang="pt-br">
 <head>
   <meta charset="utf-8">
@@ -35,23 +35,79 @@
     {% if user.is_authenticated %}
     <aside class="menu shrink-0 overflow-y-auto border-r border-slate-200 bg-white p-3">
       <nav class="space-y-1">
-        {% include 'menu_item.html' with url='inicio' chave='inicio' rotulo='Início' icone='M3 11l9-8 9 8M5 10v10h5v-6h4v6h5V10' %}
-        {% if 'estrutura.gerir' in user.perfil.permissoes %}
-          <p class="grupo px-3 pb-1 pt-5 text-[13px] font-semibold uppercase tracking-wider text-slate-500">Estrutura</p>
-          {% include 'menu_item.html' with url='secretarias_lista' chave='secretarias' rotulo='Secretarias' icone='M4 21V4h10v17M14 9h6v12M2 21h20M7 8h4M7 12h4M7 16h4' %}
-          {% include 'menu_item.html' with url='unidades_lista' chave='unidades' rotulo='Unidades' icone='M9 3h6v5H9zM3 16h6v5H3zM15 16h6v5h-6zM12 8v4M6 16v-4h12v4' %}
-          {% include 'menu_item.html' with url='centros_custo_lista' chave='centros_custo' rotulo='Centros de custo' icone='M12 3a9 9 0 100 18 9 9 0 000-18zM12 7v10M15 9.5c0-1-1.3-1.5-3-1.5s-3 .8-3 2 1.3 1.7 3 2 3 .8 3 2-1.3 2-3 2-3-.5-3-1.5' %}
-        {% endif %}
-        {% if 'usuarios.gerir' in user.perfil.permissoes or 'auditoria.ver' in user.perfil.permissoes %}
-          <p class="grupo px-3 pb-1 pt-5 text-[13px] font-semibold uppercase tracking-wider text-slate-500">Administração</p>
-        {% endif %}
-        {% if 'usuarios.gerir' in user.perfil.permissoes %}
-          {% include 'menu_item.html' with url='usuarios_lista' chave='usuarios' rotulo='Usuários' icone='M16 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2M10 11a4 4 0 100-8 4 4 0 000 8zM20 21v-2a4 4 0 00-3-3.9M16 3.1a4 4 0 010 7.8' %}
-        {% endif %}
-        {% if 'auditoria.ver' in user.perfil.permissoes %}
-          {% include 'menu_item.html' with url='auditoria' chave='auditoria' rotulo='Auditoria' icone='M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6l8-3zM9 12l2 2 4-4' %}
-        {% endif %}
-      </nav>
+  {% include 'menu_item.html' with url='inicio' chave='inicio' rotulo='Início' icone='M3 11l9-8 9 8M5 10v10h5v-6h4v6h5V10' %}
+  {% with pagina=request.resolver_match.url_name %}
+  {% if user|pode:'frota.ver' %}
+  <details data-grupo="frota" class="grupo-menu" {% if pagina|pagina_de:'veiculos' or pagina|pagina_de:'categorias_veiculo' or pagina|pagina_de:'marcas' %}open data-ativo{% endif %}>
+    <summary title="Frota" class="item-menu flex items-center gap-3 rounded-lg px-3 py-2.5 font-medium {% if pagina|pagina_de:'veiculos' or pagina|pagina_de:'categorias_veiculo' or pagina|pagina_de:'marcas' %}text-slate-900{% else %}text-slate-600 hover:bg-slate-100 hover:text-slate-900{% endif %}">
+      <svg class="h-6 w-6 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 13l2-6a2 2 0 011.9-1.4h10.2A2 2 0 0119 7l2 6v4a1 1 0 01-1 1h-1a2 2 0 01-4 0H9a2 2 0 01-4 0H4a1 1 0 01-1-1v-4zM3 13h18"/></svg>
+      <span class="rotulo flex-1 whitespace-nowrap">Frota</span>
+      <svg class="chevron h-4 w-4 shrink-0 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>
+    </summary>
+    <div class="subitens ml-5 mt-1 space-y-0.5 border-l border-slate-200 pl-3">
+      {% include 'menu_subitem.html' with url='veiculos_lista' chave='veiculos' rotulo='Veículos' %}
+      {% include 'menu_subitem.html' with url='categorias_veiculo_lista' chave='categorias_veiculo' rotulo='Categorias' %}
+      {% include 'menu_subitem.html' with url='marcas_lista' chave='marcas' rotulo='Marcas e modelos' %}
+    </div>
+  </details>
+  {% endif %}
+  {% if user|pode:'pessoas.ver' %}
+  <details data-grupo="pessoas" class="grupo-menu" {% if pagina|pagina_de:'motoristas' %}open data-ativo{% endif %}>
+    <summary title="Pessoas" class="item-menu flex items-center gap-3 rounded-lg px-3 py-2.5 font-medium {% if pagina|pagina_de:'motoristas' %}text-slate-900{% else %}text-slate-600 hover:bg-slate-100 hover:text-slate-900{% endif %}">
+      <svg class="h-6 w-6 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18v12H3zM8 11a2 2 0 100-4 2 2 0 000 4zM5.5 16c.5-1.5 1.5-2 2.5-2s2 .5 2.5 2M14 10h4M14 14h3"/></svg>
+      <span class="rotulo flex-1 whitespace-nowrap">Pessoas</span>
+      <svg class="chevron h-4 w-4 shrink-0 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>
+    </summary>
+    <div class="subitens ml-5 mt-1 space-y-0.5 border-l border-slate-200 pl-3">
+      {% include 'menu_subitem.html' with url='motoristas_lista' chave='motoristas' rotulo='Motoristas' %}
+    </div>
+  </details>
+  {% endif %}
+  {% if user|pode:'financeiro.ver' %}
+  <details data-grupo="financeiro" class="grupo-menu" {% if pagina|pagina_de:'fornecedores' or pagina|pagina_de:'contratos' or pagina|pagina_de:'fiscais' or pagina|pagina_de:'empenhos' %}open data-ativo{% endif %}>
+    <summary title="Financeiro" class="item-menu flex items-center gap-3 rounded-lg px-3 py-2.5 font-medium {% if pagina|pagina_de:'fornecedores' or pagina|pagina_de:'contratos' or pagina|pagina_de:'fiscais' or pagina|pagina_de:'empenhos' %}text-slate-900{% else %}text-slate-600 hover:bg-slate-100 hover:text-slate-900{% endif %}">
+      <svg class="h-6 w-6 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 7h18v10H3zM12 14a2 2 0 100-4 2 2 0 000 4zM6 10h.01M18 14h.01"/></svg>
+      <span class="rotulo flex-1 whitespace-nowrap">Financeiro</span>
+      <svg class="chevron h-4 w-4 shrink-0 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>
+    </summary>
+    <div class="subitens ml-5 mt-1 space-y-0.5 border-l border-slate-200 pl-3">
+      {% include 'menu_subitem.html' with url='fornecedores_lista' chave='fornecedores' rotulo='Fornecedores' %}
+      {% include 'menu_subitem.html' with url='contratos_lista' chave='contratos' rotulo='Contratos' %}
+      {% include 'menu_subitem.html' with url='fiscais_lista' chave='fiscais' rotulo='Fiscais' %}
+      {% include 'menu_subitem.html' with url='empenhos_lista' chave='empenhos' rotulo='Empenhos' %}
+    </div>
+  </details>
+  {% endif %}
+  {% if user|pode:'estrutura.gerir' %}
+  <details data-grupo="estrutura" class="grupo-menu" {% if pagina|pagina_de:'secretarias' or pagina|pagina_de:'unidades' or pagina|pagina_de:'centros_custo' %}open data-ativo{% endif %}>
+    <summary title="Estrutura" class="item-menu flex items-center gap-3 rounded-lg px-3 py-2.5 font-medium {% if pagina|pagina_de:'secretarias' or pagina|pagina_de:'unidades' or pagina|pagina_de:'centros_custo' %}text-slate-900{% else %}text-slate-600 hover:bg-slate-100 hover:text-slate-900{% endif %}">
+      <svg class="h-6 w-6 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 21V4h10v17M14 9h6v12M2 21h20M7 8h4M7 12h4M7 16h4"/></svg>
+      <span class="rotulo flex-1 whitespace-nowrap">Estrutura</span>
+      <svg class="chevron h-4 w-4 shrink-0 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>
+    </summary>
+    <div class="subitens ml-5 mt-1 space-y-0.5 border-l border-slate-200 pl-3">
+      {% include 'menu_subitem.html' with url='secretarias_lista' chave='secretarias' rotulo='Secretarias' %}
+      {% include 'menu_subitem.html' with url='unidades_lista' chave='unidades' rotulo='Unidades' %}
+      {% include 'menu_subitem.html' with url='centros_custo_lista' chave='centros_custo' rotulo='Centros de custo' %}
+    </div>
+  </details>
+  {% endif %}
+  {% if user|pode:'frota.gerir' or user|pode:'pessoas.gerir' or user|pode:'usuarios.gerir' or user|pode:'auditoria.ver' %}
+  <details data-grupo="administracao" class="grupo-menu" {% if pagina|pagina_de:'importacao' or pagina|pagina_de:'usuarios' or pagina|pagina_de:'auditoria' %}open data-ativo{% endif %}>
+    <summary title="Administração" class="item-menu flex items-center gap-3 rounded-lg px-3 py-2.5 font-medium {% if pagina|pagina_de:'importacao' or pagina|pagina_de:'usuarios' or pagina|pagina_de:'auditoria' %}text-slate-900{% else %}text-slate-600 hover:bg-slate-100 hover:text-slate-900{% endif %}">
+      <svg class="h-6 w-6 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6l8-3zM9 12l2 2 4-4"/></svg>
+      <span class="rotulo flex-1 whitespace-nowrap">Administração</span>
+      <svg class="chevron h-4 w-4 shrink-0 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>
+    </summary>
+    <div class="subitens ml-5 mt-1 space-y-0.5 border-l border-slate-200 pl-3">
+      {% if user|pode:'frota.gerir' or user|pode:'pessoas.gerir' %}{% include 'menu_subitem.html' with url='importacao_inicio' chave='importacao' rotulo='Importação' %}{% endif %}
+      {% if user|pode:'usuarios.gerir' %}{% include 'menu_subitem.html' with url='usuarios_lista' chave='usuarios' rotulo='Usuários' %}{% endif %}
+      {% if user|pode:'auditoria.ver' %}{% include 'menu_subitem.html' with url='auditoria' chave='auditoria' rotulo='Auditoria' %}{% endif %}
+    </div>
+  </details>
+  {% endif %}
+  {% endwith %}
+</nav>
     </aside>
     <div class="fundo-menu" id="fundo-menu"></div>
     {% endif %}
@@ -78,6 +134,30 @@
         definir(raiz.dataset.menu === 'aberto' ? 'fechado' : 'aberto');
       });
       document.getElementById('fundo-menu').addEventListener('click', function () { definir('fechado'); });
+
+      // Grupos do menu: comecam todos fechados; o grupo da pagina atual abre sozinho (sem ser salvo).
+      // So o que a PESSOA abre ou fecha com um clique fica salvo. (Chave nova: descarta o estado salvo por engano antes.)
+      var CHAVE = 'menu-grupos-v2';
+      var salvos = {};
+      try { salvos = JSON.parse(localStorage.getItem(CHAVE) || '{}'); } catch (e) {}
+      function lembrar(nome, aberto) {
+        salvos[nome] = aberto;
+        try { localStorage.setItem(CHAVE, JSON.stringify(salvos)); } catch (e) {}
+      }
+      document.querySelectorAll('.menu details[data-grupo]').forEach(function (grupo) {
+        var nome = grupo.dataset.grupo;
+        if (!grupo.hasAttribute('data-ativo') && nome in salvos) grupo.open = salvos[nome];
+        grupo.querySelector('summary').addEventListener('click', function (e) {
+          if (raiz.dataset.menu === 'fechado' && window.innerWidth >= 768) {  // menu so com icones: abre o menu e o grupo
+            e.preventDefault();
+            definir('aberto');
+            grupo.open = true;
+            lembrar(nome, true);
+          } else {
+            setTimeout(function () { lembrar(nome, grupo.open); }, 0);  // depois que o navegador abre/fecha
+          }
+        });
+      });
 
       // Avisos das acoes feitas sem recarregar a pagina (HTMX).
       function mostrar(texto, tipo) {

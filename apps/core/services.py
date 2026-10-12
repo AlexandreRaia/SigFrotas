@@ -6,7 +6,7 @@ from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.db import transaction
 
-from .models import Anexo, Municipio, Perfil, Usuario
+from .models import Anexo, Auditoria, Municipio, Perfil, Usuario
 from .permissoes import PERFIS_PADRAO
 from .tenant import com_municipio
 
@@ -21,10 +21,38 @@ def criar_municipio(*, nome, slug, uf, cnpj, codigo_ibge=''):
     return municipio
 
 
+def sincronizar_perfis(municipio):
+    """Acrescenta ao perfil as permissoes novas de PERFIS_PADRAO (cria perfil que falte). Nunca remove permissao.
+
+    Devolve {codigo: [permissoes acrescentadas]}. Roda a cada atualizacao do sistema (entrypoint) e depois de criar modulos.
+    """
+    acrescentadas = {}
+    with com_municipio(municipio.id):
+        for codigo, (nome, permissoes) in PERFIS_PADRAO.items():
+            perfil = Perfil.objects.filter(municipio=municipio, codigo=codigo).first()
+            if perfil is None:
+                Perfil.objects.create(municipio=municipio, codigo=codigo, nome=nome, permissoes=list(permissoes))
+                acrescentadas[codigo] = list(permissoes)
+                continue
+            faltando = [p for p in permissoes if p not in perfil.permissoes]
+            if faltando:
+                perfil.permissoes = perfil.permissoes + faltando
+                perfil.save()
+                acrescentadas[codigo] = faltando
+    return acrescentadas
+
+
 def criar_usuario(*, municipio, perfil_codigo, nome, email, senha, **extras):
     with com_municipio(municipio.id):
         perfil = Perfil.objects.get(municipio=municipio, codigo=perfil_codigo)
         return Usuario.objects.create_user(municipio, email, nome, perfil, senha, **extras)
+
+
+def registrar_consulta(*, usuario, objeto, detalhe=''):
+    """LGPD: grava na auditoria que o usuario consultou dados pessoais deste registro (acao 'C')."""
+    return Auditoria.objects.create(
+        municipio_id=objeto.municipio_id, usuario_id=usuario.pk, tabela=objeto._meta.db_table, registro_id=objeto.pk,
+        acao='C', dados_depois={'detalhe': detalhe} if detalhe else None)
 
 
 def anexar(*, municipio_id, entidade, entidade_id, arquivo, categoria='', enviado_por=None):

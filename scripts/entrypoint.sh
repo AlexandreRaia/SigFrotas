@@ -12,4 +12,5 @@ do
 done
 
 python manage.py migrate --noinput
+python manage.py atualizar_perfis   # permissoes novas dos perfis (so acrescenta)
 exec "$@"

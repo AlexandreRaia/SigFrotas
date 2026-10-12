@@ -1,3 +1,29 @@
+{% if form.grupos %}
+<form method="post" class="max-w-5xl space-y-6" hx-post="{{ request.path }}" hx-target="this" hx-swap="outerHTML">
+  {% csrf_token %}
+  {% for oculto in form.hidden_fields %}{{ oculto }}{% endfor %}
+  {% if form.non_field_errors %}<div class="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-red-700">{{ form.non_field_errors }}</div>{% endif %}
+  {% for titulo, campos in form.agrupados %}
+  <section class="cartao p-6">
+    <h2 class="mb-4 text-lg font-semibold">{{ titulo }}</h2>
+    <div class="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+      {% for campo, largo in campos %}
+      <div class="{% if largo %}sm:col-span-2 lg:col-span-3{% endif %}">
+        <label for="{{ campo.id_for_label }}" class="mb-1 block font-medium">{{ campo.label }}</label>
+        {{ campo }}
+        {% if campo.help_text %}<p class="mt-1 text-sm text-slate-600">{{ campo.help_text }}</p>{% endif %}
+        {% if campo.errors %}<div class="mt-1 text-sm font-medium text-red-700">{{ campo.errors }}</div>{% endif %}
+      </div>
+      {% endfor %}
+    </div>
+  </section>
+  {% endfor %}
+  <div class="flex items-center gap-3">
+    <button class="btn-primario">Salvar</button>
+    <a href="{% url base|add:'_lista' %}" class="btn-secundario">Cancelar</a>
+  </div>
+</form>
+{% else %}
 <form method="post" class="cartao max-w-xl space-y-5 p-6" hx-post="{{ request.path }}" hx-target="this" hx-swap="outerHTML">
   {% csrf_token %}
   {{ form.non_field_errors }}
@@ -14,3 +40,4 @@
     <a href="{% url base|add:'_lista' %}" class="btn-secundario">Cancelar</a>
   </div>
 </form>
+{% endif %}

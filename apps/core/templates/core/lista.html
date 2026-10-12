@@ -3,10 +3,32 @@
 {% block conteudo %}
 <div class="mb-6 flex items-center justify-between">
   <h1 class="text-2xl font-semibold tracking-tight">{{ titulo }}</h1>
+  {% if pode_criar %}
   <a href="{% url base|add:'_novo' %}" class="btn-primario">
     <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
     Novo
   </a>
+  {% endif %}
 </div>
+{% if tem_busca or filtros %}
+<form method="get" class="filtro cartao mb-5 flex flex-wrap items-end gap-4 p-4"
+      hx-get="{{ request.path }}" hx-target="#resultado" hx-push-url="true" hx-indicator="#resultado" hx-trigger="submit, input delay:300ms">
+  {% if tem_busca %}
+  <div class="min-w-[14rem] flex-1">
+    <label for="busca" class="mb-1 block font-medium">Buscar</label>
+    <input id="busca" type="text" name="busca" value="{{ busca }}" placeholder="Digite para buscar" autocomplete="off">
+  </div>
+  {% endif %}
+  {% for campo, rotulo, opcoes, atual in filtros %}
+  <div>
+    <label for="f-{{ campo }}" class="mb-1 block font-medium">{{ rotulo }}</label>
+    <select id="f-{{ campo }}" name="{{ campo }}" class="!w-auto">
+      <option value="">Todos</option>
+      {% for valor, nome in opcoes %}<option value="{{ valor }}" {% if valor|stringformat:"s" == atual %}selected{% endif %}>{{ nome }}</option>{% endfor %}
+    </select>
+  </div>
+  {% endfor %}
+</form>
+{% endif %}
 <div id="resultado">{% include 'core/_lista_tabela.html' %}</div>
 {% endblock %}

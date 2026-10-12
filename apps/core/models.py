@@ -129,7 +129,7 @@ class Usuario(AbstractBaseUser, ModeloDoMunicipio):
     perfil = models.ForeignKey(Perfil, on_delete=models.PROTECT)
     secretaria = models.ForeignKey(Secretaria, null=True, blank=True, on_delete=models.PROTECT)
     unidade = models.ForeignKey(Unidade, null=True, blank=True, on_delete=models.PROTECT)
-    fornecedor_id = models.BigIntegerField(null=True, blank=True)  # vira FK para fornecedores na Fase 1
+    fornecedor = models.ForeignKey('financeiro.Fornecedor', null=True, blank=True, on_delete=models.PROTECT)  # usuario de oficina
     nome = models.TextField()
     email = EmailInsensivel()
     cpf = models.CharField(max_length=11, blank=True)
@@ -154,7 +154,11 @@ class Usuario(AbstractBaseUser, ModeloDoMunicipio):
         return self.ativo
 
     def tem_permissao(self, permissao):
-        return self.ativo and permissao in self.perfil.permissoes
+        if not self.ativo:
+            return False
+        permissoes = self.perfil.permissoes
+        # "x.gerir" inclui "x.ver"
+        return permissao in permissoes or (permissao.endswith('.ver') and permissao[:-4] + '.gerir' in permissoes)
 
     def __str__(self):
         return self.nome
@@ -192,7 +196,8 @@ class Auditoria(models.Model):
     usuario_id = models.BigIntegerField(null=True)
     tabela = models.TextField()
     registro_id = models.BigIntegerField(null=True)
-    acao = models.CharField(max_length=1, choices=[('I', 'Inclusão'), ('U', 'Alteração'), ('D', 'Exclusão')])
+    acao = models.CharField(max_length=1, choices=[('I', 'Inclusão'), ('U', 'Alteração'), ('D', 'Exclusão'),
+                                                   ('C', 'Consulta')])  # consulta a dado pessoal (LGPD)
     dados_antes = models.JSONField(null=True)
     dados_depois = models.JSONField(null=True)
     em = models.DateTimeField(auto_now_add=True)

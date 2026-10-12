@@ -7,7 +7,7 @@
   src: url("../fonts/inter-latin-var.woff2") format('woff2');
 }
 
-:root { --p-50: #EFF6FF; --p-100: #DBEAFE; --p-700: #1D4ED8; --p-800: #1E40AF; --p-900: #1E3A8A; }
+:root { --p-50: #EEF4FF; --p-100: #DBE7FF; --p-700: #2563EB; --p-800: #1D4ED8; --p-900: #1E3A8A; }
 
 @layer base {
   body { font-feature-settings: 'cv11', 'ss01'; }
@@ -15,7 +15,7 @@
 
   /* Campos de formulario */
   input[type=text], input[type=email], input[type=password], input[type=date], input[type=number], select, textarea {
-    width: 100%; background: #fff; border: 1px solid #94A3B8; border-radius: .5rem; padding: .55rem .75rem; color: #0F172A;
+    width: 100%; background: #fff; border: 1px solid #7A8699; border-radius: .5rem; padding: .55rem .75rem; color: #0F172A;
   }
   input:focus, select:focus, textarea:focus { outline: 2px solid var(--p-700); outline-offset: 1px; border-color: var(--p-700); }
   .filtro input { width: auto; }
@@ -43,7 +43,17 @@ html[data-menu=fechado] .menu { width: 4.25rem; }
 html[data-menu=fechado] .menu .rotulo, html[data-menu=fechado] .menu .grupo { display: none; }
 html[data-menu=fechado] .menu .item-menu { justify-content: center; padding-left: 0; padding-right: 0; }
 .fundo-menu { display: none; }
+
+/* Grupos do menu: <details>/<summary> nativos (abrem e fecham sem JavaScript) */
+.menu summary { list-style: none; cursor: pointer; }
+.menu summary::-webkit-details-marker { display: none; }
+.menu .chevron { transition: transform .15s ease; }
+.menu details[open] > summary .chevron { transform: rotate(90deg); }
+html[data-menu=fechado] .menu .chevron, html[data-menu=fechado] .menu .subitens { display: none; }  /* menu so com icones */
+
 @media (max-width: 767px) {
+  html[data-menu=fechado] .menu .chevron { display: block; }
+  html[data-menu=fechado] .menu .subitens { display: block; }
   .menu { position: fixed; top: 3.5rem; bottom: 0; left: 0; z-index: 40; width: 16rem !important; transition: transform .15s ease; box-shadow: 0 10px 30px rgb(15 23 42 / .15); }
   html[data-menu=fechado] .menu { transform: translateX(-100%); }
   html[data-menu=fechado] .menu .rotulo, html[data-menu=fechado] .menu .grupo { display: inline; }

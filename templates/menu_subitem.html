@@ -1,0 +1,2 @@
+{% load sigfrotas %}<a href="{% url url %}"
+   class="block whitespace-nowrap rounded-lg px-3 py-2 {% if request.resolver_match.url_name|pagina_de:chave %}bg-primaria-50 font-medium text-primaria-800{% else %}text-slate-600 hover:bg-slate-100 hover:text-slate-900{% endif %}">{{ rotulo }}</a>

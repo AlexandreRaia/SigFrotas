@@ -26,8 +26,11 @@ class PapelDaAplicacaoTest(DuasPrefeiturasTest):
         self.assertEqual(donas, [])
 
     def test_toda_tabela_com_municipio_id_tem_rls_e_politica(self):
+        # so tabelas: as views usam security_invoker e herdam a RLS das tabelas que consultam
         tabelas = [t for (t,) in consulta(
-            "SELECT table_name FROM information_schema.columns WHERE table_schema = 'public' AND column_name = 'municipio_id'")]
+            """SELECT c.table_name FROM information_schema.columns c
+               JOIN information_schema.tables t USING (table_schema, table_name)
+               WHERE c.table_schema = 'public' AND c.column_name = 'municipio_id' AND t.table_type = 'BASE TABLE'""")]
         self.assertTrue(tabelas)
         for tabela in tabelas:
             ligada = consulta('SELECT relrowsecurity FROM pg_class WHERE oid = %s::regclass', [tabela])[0][0]

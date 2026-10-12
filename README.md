@@ -21,6 +21,18 @@ powershell -File scripts\css.ps1              # gera o CSS (static\css\app.css)
 - Defina `MUNICIPIO_PADRAO_SLUG=exemplo` no `.env` para esconder o campo "Prefeitura" no login.
 - Ao mexer nos templates, deixe `powershell -File scripts\css.ps1 -Watch` aberto: ele regera o CSS ao salvar.
 
+## Módulos
+
+| App | Conteúdo | Especificação |
+|---|---|---|
+| `core` | prefeituras, usuários, perfis, estrutura, auditoria, anexos | `docs/fase0_fundacao.md` |
+| `financeiro` | fornecedores, contratos, fiscais, empenhos e saldo | `docs/fase1_cadastros.md` |
+| `frota` | veículos, categorias, marcas e modelos, leituras, lotações | `docs/fase1_cadastros.md` |
+| `pessoas` | motoristas (dados pessoais protegidos e auditados) | `docs/fase1_cadastros.md` |
+| `importacao` | carga inicial de veículos e motoristas por planilha CSV | `docs/fase1_cadastros.md` |
+
+Depois de atualizar o código, rode `migrate` e `atualizar_perfis` (acrescenta aos perfis as permissões dos módulos novos; na VPS o `entrypoint.sh` faz isso sozinho). Regras de escopo (quem vê o quê) em `apps/core/escopo.py`; saldo de empenho só pelo `apps/financeiro/services.py`; km só pelo `apps/frota/services.py`.
+
 ## Testes
 
 ```powershell

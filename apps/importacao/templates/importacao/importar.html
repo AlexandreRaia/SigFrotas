@@ -1,0 +1,49 @@
+{% extends 'base.html' %}
+{% block titulo %}{{ titulo }} · SigFrotas{% endblock %}
+{% block conteudo %}
+<h1 class="mb-2 text-2xl font-semibold tracking-tight">{{ titulo }}</h1>
+<p class="mb-6 text-slate-600">Baixe o <a class="link-acao" href="{% url modelo_url %}">arquivo modelo</a>, preencha uma linha por registro e envie. Os nomes das colunas devem ser os do modelo; a ordem não importa.</p>
+
+<form method="post" enctype="multipart/form-data" class="cartao mb-8 max-w-xl space-y-4 p-5">
+  {% csrf_token %}
+  <div><label for="arquivo" class="mb-1 block font-medium">Arquivo CSV</label><input id="arquivo" type="file" name="arquivo" accept=".csv,text/csv" required></div>
+  <div class="flex flex-wrap gap-3">
+    <button name="acao" value="verificar" class="btn-secundario">Verificar (não grava)</button>
+    <button name="acao" value="importar" class="btn-primario">Importar</button>
+  </div>
+  <p class="text-sm text-slate-600">"Importar" também confere tudo e só grava se não houver nenhum erro.</p>
+</form>
+
+{% if resultado %}
+  {% if resultado.erro_geral %}
+    <p class="mb-6 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-red-700">{{ resultado.erro_geral }}</p>
+  {% else %}
+    {% if resultado.erros %}
+      <p class="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-red-700">{{ resultado.erros|length }} linha(s) com problema. Nada foi gravado. Corrija o arquivo e envie de novo.</p>
+    {% else %}
+      <p class="mb-4 rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-green-700">Tudo certo: {{ resultado.total_ok }} linha(s) válidas. Clique em "Importar" para gravar.</p>
+    {% endif %}
+    <div class="cartao mb-8 overflow-x-auto">
+      <table class="w-full text-left">
+        <thead class="border-b border-slate-200 bg-slate-50 text-slate-600"><tr><th class="px-4 py-3 font-semibold">Linha</th><th class="px-4 py-3 font-semibold">Resultado</th></tr></thead>
+        <tbody class="divide-y divide-slate-100">
+          {% for numero, erro, descricao in resultado.linhas %}
+          <tr><td class="px-4 py-2">{{ numero }}</td>
+            <td class="px-4 py-2 {% if erro %}text-red-700{% else %}text-green-700{% endif %}">{% if erro %}{{ erro }}{% else %}OK · {{ descricao }}{% endif %}</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% endif %}
+{% endif %}
+
+<h2 class="mb-3 text-lg font-semibold">Colunas</h2>
+<div class="cartao overflow-x-auto">
+  <table class="w-full text-left">
+    <thead class="border-b border-slate-200 bg-slate-50 text-slate-600"><tr><th class="px-4 py-2 font-semibold">Coluna</th><th class="px-4 py-2 font-semibold">Obrigatória</th><th class="px-4 py-2 font-semibold">Observação</th></tr></thead>
+    <tbody class="divide-y divide-slate-100">
+      {% for nome, obrigatoria, ajuda in colunas %}<tr><td class="px-4 py-2 font-mono text-sm">{{ nome }}</td><td class="px-4 py-2">{% if obrigatoria %}Sim{% else %}Não{% endif %}</td><td class="px-4 py-2 text-slate-600">{{ ajuda }}</td></tr>{% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

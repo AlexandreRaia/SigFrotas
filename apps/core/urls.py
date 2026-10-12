@@ -2,6 +2,20 @@ from django.urls import path
 
 from . import views
 
+
+def caminhos(base, rotas, prefixo=None):
+    """Urls de um cadastro gerado por views.rotas_cadastro: <base>_lista, _novo, _editar e (se houver) _alternar."""
+    prefixo = prefixo or base.replace('_', '-')
+    resultado = [
+        path(f'{prefixo}/', rotas['lista'], name=f'{base}_lista'),
+        path(f'{prefixo}/novo/', rotas['novo'], name=f'{base}_novo'),
+        path(f'{prefixo}/<int:pk>/editar/', rotas['editar'], name=f'{base}_editar'),
+    ]
+    if 'alternar' in rotas:
+        resultado.append(path(f'{prefixo}/<int:pk>/alternar/', rotas['alternar'], name=f'{base}_alternar'))
+    return resultado
+
+
 urlpatterns = [
     path('', views.inicio, name='inicio'),
     path('entrar/', views.entrar, name='entrar'),
@@ -12,9 +26,4 @@ urlpatterns = [
 ]
 
 for base, rotas in views.CADASTROS.items():
-    urlpatterns += [
-        path(f'{base}/', rotas['lista'], name=f'{base}_lista'),
-        path(f'{base}/novo/', rotas['novo'], name=f'{base}_novo'),
-        path(f'{base}/<int:pk>/', rotas['editar'], name=f'{base}_editar'),
-        path(f'{base}/<int:pk>/alternar/', rotas['alternar'], name=f'{base}_alternar'),
-    ]
+    urlpatterns += caminhos(base, rotas, prefixo=base)

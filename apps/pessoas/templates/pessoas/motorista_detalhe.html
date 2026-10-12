@@ -1,0 +1,113 @@
+{% extends 'base.html' %}
+{% load sigfrotas %}
+{% block titulo %}{{ motorista.nome }} · SigFrotas{% endblock %}
+{% block conteudo %}
+{% include 'core/_cabecalho_detalhe.html' with titulo=motorista.nome subtitulo=motorista.prontuario situacao=motorista.get_situacao_display %}
+<div class="mb-6 flex flex-wrap items-center gap-3">
+  {% if pode_gerir %}<a href="{% url 'motoristas_editar' motorista.pk %}" class="btn-primario">Editar</a>{% endif %}
+  <a href="{% url 'motoristas_lista' %}" class="btn-secundario">Voltar à lista</a>
+</div>
+{% if ve_dados %}<p class="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-amber-800">Esta ficha tem dados pessoais. O acesso é registrado na auditoria.</p>{% endif %}
+
+<div class="mb-8 grid gap-6 lg:grid-cols-2">
+  <section class="cartao p-5">
+    <h2 class="mb-3 text-lg font-semibold">Dados funcionais</h2>
+    <dl class="grid grid-cols-[10rem_1fr] gap-x-4 gap-y-1">
+      <dt class="text-slate-600">Prontuário</dt><dd>{{ motorista.prontuario }}</dd>
+      <dt class="text-slate-600">Secretaria</dt><dd>{{ motorista.secretaria|default:"-" }}</dd>
+      <dt class="text-slate-600">Unidade</dt><dd>{{ motorista.unidade|default:"-" }}</dd>
+      <dt class="text-slate-600">Cargo</dt><dd>{{ motorista.cargo|default:"-" }}</dd>
+      <dt class="text-slate-600">Usuário de acesso</dt><dd>{{ motorista.usuario|default:"-" }}</dd>
+    </dl>
+  </section>
+  <section class="cartao p-5">
+    <h2 class="mb-3 text-lg font-semibold">Habilitação</h2>
+    <dl class="grid grid-cols-[10rem_1fr] gap-x-4 gap-y-1">
+      <dt class="text-slate-600">Categoria</dt><dd>{{ motorista.cnh_categoria|default:"-" }}</dd>
+      <dt class="text-slate-600">Validade</dt><dd>{{ motorista.cnh_validade|data_br|default:"-" }}</dd>
+      <dt class="text-slate-600">Situação</dt><dd class="{% if motorista.cnh_status == 'Vencida' %}font-semibold text-red-700{% endif %}">{{ motorista.cnh_status }}</dd>
+      {% if ve_dados %}
+      <dt class="text-slate-600">Número</dt><dd>{{ motorista.cnh_numero|default:"-" }}</dd>
+      <dt class="text-slate-600">Emissão</dt><dd>{{ motorista.cnh_emissao|data_br|default:"-" }}</dd>
+      <dt class="text-slate-600">Órgão</dt><dd>{{ motorista.cnh_orgao|default:"-" }}</dd>
+      {% endif %}
+    </dl>
+  </section>
+  {% if ve_dados %}
+  <section class="cartao p-5">
+    <h2 class="mb-3 text-lg font-semibold">Dados pessoais</h2>
+    <dl class="grid grid-cols-[10rem_1fr] gap-x-4 gap-y-1">
+      <dt class="text-slate-600">CPF</dt><dd>{{ motorista.cpf|cpf }}</dd>
+      <dt class="text-slate-600">RG</dt><dd>{{ motorista.rg|default:"-" }} {{ motorista.rg_emissor }}</dd>
+      <dt class="text-slate-600">Nascimento</dt><dd>{{ motorista.data_nascimento|data_br|default:"-" }}</dd>
+      <dt class="text-slate-600">Telefone</dt><dd>{{ motorista.telefone|default:"-" }}</dd>
+      <dt class="text-slate-600">E-mail</dt><dd>{{ motorista.email|default:"-" }}</dd>
+      <dt class="text-slate-600">Endereço</dt><dd>{{ motorista.endereco|default:"-" }} {{ motorista.cep }}</dd>
+    </dl>
+  </section>
+  {% endif %}
+</div>
+
+<div class="mb-8 grid gap-6 lg:grid-cols-2">
+  <section class="cartao p-5">
+    <h2 class="mb-3 text-lg font-semibold">Certificados</h2>
+    <ul class="mb-3 divide-y divide-slate-100">
+      {% for c in certificados %}<li class="flex items-center justify-between py-2"><span>{{ c.curso }}{% if c.validade %} <span class="text-slate-600">· válido até {{ c.validade|data_br }}</span>{% endif %}</span>
+        {% if pode_gerir %}<form method="post" action="{% url 'motoristas_certificado_excluir' motorista.pk c.pk %}">{% csrf_token %}<button class="link-perigo">Remover</button></form>{% endif %}</li>
+      {% empty %}<li class="py-2 text-slate-600">Nenhum certificado.</li>{% endfor %}
+    </ul>
+    {% if pode_gerir %}
+    <form method="post" action="{% url 'motoristas_certificado_novo' motorista.pk %}" class="grid gap-3 sm:grid-cols-2">{% csrf_token %}
+      {% for campo in form_certificado %}<div><label for="{{ campo.id_for_label }}" class="mb-1 block text-sm font-medium">{{ campo.label }}</label>{{ campo }}</div>{% endfor %}
+      <button class="btn-secundario justify-self-start sm:col-span-2">Adicionar</button>
+    </form>
+    {% endif %}
+  </section>
+  <section class="cartao p-5">
+    <h2 class="mb-3 text-lg font-semibold">Férias, folgas e licenças</h2>
+    <ul class="mb-3 divide-y divide-slate-100">
+      {% for a in afastamentos %}<li class="flex items-center justify-between py-2"><span>{{ a.get_tipo_display }} · {{ a.inicio|data_br }} a {{ a.fim|data_br }}</span>
+        {% if pode_gerir %}<form method="post" action="{% url 'motoristas_afastamento_excluir' motorista.pk a.pk %}">{% csrf_token %}<button class="link-perigo">Remover</button></form>{% endif %}</li>
+      {% empty %}<li class="py-2 text-slate-600">Nenhum afastamento.</li>{% endfor %}
+    </ul>
+    {% if pode_gerir %}
+    <form method="post" action="{% url 'motoristas_afastamento_novo' motorista.pk %}" class="grid gap-3 sm:grid-cols-2">{% csrf_token %}
+      {% for campo in form_afastamento %}<div><label for="{{ campo.id_for_label }}" class="mb-1 block text-sm font-medium">{{ campo.label }}</label>{{ campo }}</div>{% endfor %}
+      <button class="btn-secundario justify-self-start sm:col-span-2">Adicionar</button>
+    </form>
+    {% endif %}
+  </section>
+</div>
+
+{% if ve_dados %}
+<div class="mb-8 grid gap-6 lg:grid-cols-2">
+  <section class="cartao p-5">
+    <h2 class="mb-3 text-lg font-semibold">Penalidades</h2>
+    <ul class="mb-3 divide-y divide-slate-100">
+      {% for p in penalidades %}<li class="py-2">{{ p.aplicada_em|data_br|default:"s/d" }}: {{ p.descricao }}{% if p.penalidade %} <span class="text-slate-600">→ {{ p.penalidade }}</span>{% endif %}</li>
+      {% empty %}<li class="py-2 text-slate-600">Nenhuma penalidade registrada.</li>{% endfor %}
+    </ul>
+    {% if pode_gerir %}
+    <form method="post" action="{% url 'motoristas_penalidade_nova' motorista.pk %}" class="grid gap-3 sm:grid-cols-2">{% csrf_token %}
+      {% for campo in form_penalidade %}<div><label for="{{ campo.id_for_label }}" class="mb-1 block text-sm font-medium">{{ campo.label }}</label>{{ campo }}</div>{% endfor %}
+      <button class="btn-secundario justify-self-start sm:col-span-2">Registrar</button>
+    </form>
+    <p class="mt-2 text-sm text-slate-600">Penalidades só se acrescentam; não há como apagar.</p>
+    {% endif %}
+  </section>
+  <section class="cartao p-5">
+    <h2 class="mb-3 text-lg font-semibold">Anexos</h2>
+    <ul class="mb-3 divide-y divide-slate-100">
+      {% for a in anexos %}<li class="flex items-center justify-between py-2"><a class="link-acao" href="{% url 'anexo_baixar' a.pk %}">{{ a.nome_arquivo }}</a><span class="text-slate-600">{{ a.categoria }} · {{ a.criado_em|date:"d/m/Y" }}</span></li>
+      {% empty %}<li class="py-2 text-slate-600">Nenhum arquivo (CNH, certificados...).</li>{% endfor %}
+    </ul>
+    {% if pode_gerir %}
+    <form method="post" enctype="multipart/form-data" action="{% url 'motoristas_anexo_novo' motorista.pk %}" class="grid gap-3 sm:grid-cols-2">{% csrf_token %}
+      {% for campo in form_anexo %}<div><label for="{{ campo.id_for_label }}" class="mb-1 block text-sm font-medium">{{ campo.label }}</label>{{ campo }}</div>{% endfor %}
+      <button class="btn-secundario justify-self-start sm:col-span-2">Enviar</button>
+    </form>
+    {% endif %}
+  </section>
+</div>
+{% endif %}
+{% endblock %}

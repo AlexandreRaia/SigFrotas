@@ -8,13 +8,18 @@
   {% endfor %}
   <td class="px-4 py-3">
     <div class="flex items-center justify-end gap-4">
-      <a href="{% url base|add:'_editar' obj.pk %}" class="link-acao">Editar</a>
-      {% if base == 'usuarios' %}<a href="{% url 'usuarios_senha' obj.pk %}" class="link-acao">Senha</a>{% endif %}
-      <form method="post" action="{% url base|add:'_alternar' obj.pk %}"
-            hx-post="{% url base|add:'_alternar' obj.pk %}" hx-target="#linha-{{ obj.pk }}" hx-swap="outerHTML"
-            {% if obj.ativo %}hx-confirm="Inativar este cadastro?"{% endif %}>{% csrf_token %}
-        {% if obj.ativo %}<button class="link-perigo">Inativar</button>{% else %}<button class="link-acao">Reativar</button>{% endif %}
-      </form>
+      {% if detalhe %}<a href="{% url base|add:'_detalhe' obj.pk %}" class="link-acao">Abrir</a>{% endif %}
+      {% if pode_gerir %}
+        {% if not detalhe %}<a href="{% url base|add:'_editar' obj.pk %}" class="link-acao">Editar</a>{% endif %}
+        {% if base == 'usuarios' %}<a href="{% url 'usuarios_senha' obj.pk %}" class="link-acao">Senha</a>{% endif %}
+        {% if tem_alternar %}
+        <form method="post" action="{% url base|add:'_alternar' obj.pk %}"
+              hx-post="{% url base|add:'_alternar' obj.pk %}" hx-target="#linha-{{ obj.pk }}" hx-swap="outerHTML"
+              {% if obj.ativo %}hx-confirm="Inativar este cadastro?"{% endif %}>{% csrf_token %}
+          {% if obj.ativo %}<button class="link-perigo">Inativar</button>{% else %}<button class="link-acao">Reativar</button>{% endif %}
+        </form>
+        {% endif %}
+      {% endif %}
     </div>
   </td>
 </tr>

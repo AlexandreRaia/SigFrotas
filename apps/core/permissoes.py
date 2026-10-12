@@ -1,15 +1,19 @@
-"""Perfis fixos (criados com cada prefeitura) e suas permissoes."""
+"""Perfis fixos (criados com cada prefeitura) e suas permissoes.
 
-PERMISSOES_ADMIN = ['usuarios.gerir', 'estrutura.gerir', 'auditoria.ver']
+Permissao "x.gerir" inclui "x.ver". Quem so "ve" enxerga apenas o proprio escopo (ver escopo.py).
+"""
 
-# codigo: (nome, permissoes). As permissoes dos demais perfis entram com os modulos.
+GERIR_NUCLEO = ['usuarios.gerir', 'estrutura.gerir', 'auditoria.ver']
+GERIR_FROTA = ['frota.gerir', 'financeiro.gerir', 'pessoas.gerir', 'pessoas.dados_pessoais']
+
+# codigo: (nome, permissoes)
 PERFIS_PADRAO = {
-    'ADMIN': ('Administrador', PERMISSOES_ADMIN),
-    'GESTOR_FROTA': ('Gestor de frota', []),
-    'GESTOR_UNIDADE': ('Gestor de unidade', []),
+    'ADMIN': ('Administrador', GERIR_NUCLEO + GERIR_FROTA),
+    'GESTOR_FROTA': ('Gestor de frota', GERIR_FROTA),
+    'GESTOR_UNIDADE': ('Gestor de unidade', ['frota.ver', 'pessoas.ver']),
     'SOLICITANTE': ('Solicitante', []),
     'MOTORISTA': ('Motorista', []),
-    'FISCAL': ('Fiscal de contrato', []),
+    'FISCAL': ('Fiscal de contrato', ['frota.ver', 'financeiro.ver']),
     'OFICINA': ('Oficina', []),
-    'CONSULTA': ('Consulta', []),
+    'CONSULTA': ('Consulta', ['frota.ver', 'financeiro.ver', 'pessoas.ver']),
 }
