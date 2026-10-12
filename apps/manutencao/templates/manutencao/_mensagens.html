@@ -1,0 +1,16 @@
+<div id="chat" hx-get="{% url 'smv_mensagens' smv.pk %}" hx-trigger="every 20s" hx-swap="outerHTML">
+  <div class="max-h-96 space-y-3 overflow-y-auto rounded-lg bg-slate-50 p-4" id="chat-lista">
+    {% for m in mensagens %}
+    <div class="flex {% if m.autor_id == request.user.pk %}justify-end{% endif %}">
+      <div class="max-w-[85%] rounded-xl px-4 py-2 {% if m.autor_id == request.user.pk %}bg-primaria-50{% else %}border border-slate-200 bg-white{% endif %}">
+        <p class="text-sm font-semibold text-slate-700">{{ m.autor }}{% if m.autor.fornecedor_id %} <span class="font-normal text-slate-500">(oficina)</span>{% endif %}
+          <span class="ml-2 font-normal text-slate-500">{{ m.criado_em|date:"d/m H:i" }}</span></p>
+        {% if m.texto %}<p class="whitespace-pre-line">{{ m.texto }}</p>{% endif %}
+        {% for a in m.arquivos %}<p><a class="link-acao" href="{% url 'anexo_baixar' a.pk %}">&#128206; {{ a.nome_arquivo }}</a></p>{% endfor %}
+      </div>
+    </div>
+    {% empty %}
+    <p class="py-6 text-center text-slate-600">Nenhuma mensagem ainda. Use o chat para combinar detalhes e enviar fotos, vídeos e PDFs; tudo fica registrado na SMV.</p>
+    {% endfor %}
+  </div>
+</div>

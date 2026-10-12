@@ -1,6 +1,7 @@
 /** Tailwind (CLI independente, sem Node). Gerar o CSS: scripts\css.ps1 */
 module.exports = {
-  content: ['./templates/**/*.html', './apps/**/templates/**/*.html'],
+  // os .py de templatetags entram porque escolhem classes (ex.: o selo colorido de cada situacao)
+  content: ['./templates/**/*.html', './apps/**/templates/**/*.html', './apps/**/templatetags/*.py'],
   theme: {
     extend: {
       fontFamily: { sans: ['Inter', '"Segoe UI"', 'system-ui', 'Roboto', 'Arial', 'sans-serif'] },

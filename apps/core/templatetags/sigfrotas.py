@@ -31,3 +31,19 @@ def pagina_de(nome_da_url, chave):
 def cpf(valor):
     """00000000000 -> 000.000.000-00"""
     return f'{valor[:3]}.{valor[3:6]}.{valor[6:9]}-{valor[9:]}' if valor and len(valor) == 11 and valor.isdigit() else valor
+
+SELOS = {
+    'selo-ativo': {'APROVADO', 'CONCLUIDA', 'GEROU_SMV', 'ENVIADA'},
+    'selo-erro': {'REPROVADO', 'IMPROCEDENTE', 'CANCELADA', 'CANCELADO', 'URGENTE'},
+    'selo-aviso': {'REVISAO', 'ALTA', 'NOTA_FISCAL'},
+    'selo-info': {'ABERTO', 'EM_ANALISE', 'RECEBIDO', 'DIAGNOSTICO', 'ORCAMENTO', 'EXECUCAO', 'ENTREGA', 'ENTRADA', 'RASCUNHO'},
+}
+
+
+@register.filter
+def selo(codigo):
+    """Classe do selo colorido de uma situacao (APROVADO -> verde, REPROVADO -> vermelho...). {{ obj.status|selo }}"""
+    for classe, codigos in SELOS.items():
+        if codigo in codigos:
+            return classe
+    return 'selo-inativo'

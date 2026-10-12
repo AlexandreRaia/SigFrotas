@@ -7,6 +7,7 @@ from django.core.exceptions import ValidationError
 from django.db import models
 
 from .campos import EmailInsensivel
+from .permissoes import IMPLICADA_POR
 
 
 class Municipio(models.Model):
@@ -157,8 +158,11 @@ class Usuario(AbstractBaseUser, ModeloDoMunicipio):
         if not self.ativo:
             return False
         permissoes = self.perfil.permissoes
-        # "x.gerir" inclui "x.ver"
-        return permissao in permissoes or (permissao.endswith('.ver') and permissao[:-4] + '.gerir' in permissoes)
+        if permissao in permissoes:
+            return True
+        if permissao.endswith('.ver'):  # "x.gerir" inclui "x.ver" (e as implicacoes de permissoes.IMPLICADA_POR)
+            return any(p in permissoes for p in (permissao[:-4] + '.gerir', *IMPLICADA_POR.get(permissao, ())))
+        return False
 
     def __str__(self):
         return self.nome
@@ -188,6 +192,43 @@ class Anexo(ModeloDoMunicipio):
 
     def __str__(self):
         return self.nome_arquivo
+
+
+class Sequencia(ModeloDoMunicipio):
+    """Contador por prefeitura, tipo e ano (CH-2026-0001). Use services.proximo_numero()."""
+    sem_auditoria = True
+
+    nome = models.CharField(max_length=20)
+    ano = models.SmallIntegerField()
+    ultimo = models.IntegerField(default=0)
+
+    class Meta:
+        db_table = 'sequencias'
+        constraints = [models.UniqueConstraint(fields=['municipio', 'nome', 'ano'], name='uq_sequencia')]
+
+
+class Notificacao(ModeloDoMunicipio):
+    """Aviso dentro do sistema (APP) ou e-mail na fila (EMAIL). Criar sempre por services.notificar()."""
+    sem_auditoria = True
+    CANAIS = [('EMAIL', 'E-mail'), ('APP', 'No sistema')]
+    STATUS = [('PENDENTE', 'Pendente'), ('ENVIADA', 'Enviada'), ('ERRO', 'Erro'), ('LIDA', 'Lida')]
+
+    usuario = models.ForeignKey(Usuario, null=True, blank=True, on_delete=models.CASCADE, related_name='notificacoes')
+    email_destino = models.EmailField(blank=True)
+    canal = models.CharField(max_length=6, choices=CANAIS, default='APP')
+    assunto = models.TextField()
+    corpo = models.TextField(blank=True)
+    link = models.CharField(max_length=300, blank=True)   # pagina que a notificacao abre (caminho dentro do sistema)
+    entidade = models.CharField(max_length=40, blank=True)  # ex.: smv, chamados, empenhos
+    entidade_id = models.BigIntegerField(null=True, blank=True)
+    status = models.CharField(max_length=10, choices=STATUS, default='PENDENTE')
+    criado_em = models.DateTimeField(auto_now_add=True)
+    enviada_em = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        db_table = 'notificacoes'
+        indexes = [models.Index(fields=['municipio', 'status'], name='ix_notificacoes_status')]
+        ordering = ['-criado_em', '-id']
 
 
 class Auditoria(models.Model):

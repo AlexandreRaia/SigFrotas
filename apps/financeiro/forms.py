@@ -3,7 +3,7 @@ from django.core.exceptions import ValidationError
 from django.utils import timezone
 
 from apps.core import contexto
-from apps.core.forms import FormularioDaPrefeitura
+from apps.core.forms import DecimalBR, FormularioDaPrefeitura
 from apps.core.models import Usuario
 from apps.core.validadores import so_digitos, validar_cpf_ou_cnpj
 
@@ -113,5 +113,5 @@ class EmpenhoForm(FormularioDaPrefeitura):
 
 class LiberacaoForm(forms.Form):
     data = forms.DateField(label='Data', widget=DATA)
-    valor = forms.DecimalField(label='Valor', max_digits=14, decimal_places=2, min_value=0.01)
+    valor = DecimalBR(label='Valor', max_digits=14, decimal_places=2, min_value=0.01)
     observacao = forms.CharField(label='Observação', required=False)

@@ -38,6 +38,21 @@ services:
     expose:
       - "8000"
 
+  # Envia os e-mails da fila de notificacoes a cada minuto (aviso de chamado, orcamento, saldo baixo...).
+  notificacoes:
+    build: .
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    env_file: .env
+    environment:
+      DJANGO_DEBUG: "False"
+      DJANGO_ALLOWED_HOSTS: ${DOMINIO}
+      DB_HOST: db
+    entrypoint: ["sh", "-c"]
+    command: ["while true; do python manage.py enviar_notificacoes; sleep 60; done"]
+
   caddy:
     image: caddy:2
     restart: unless-stopped

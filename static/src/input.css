@@ -31,6 +31,9 @@
   .selo { @apply inline-flex items-center rounded-full px-2.5 py-0.5 text-sm font-medium; }
   .selo-ativo { @apply selo bg-green-50 text-green-700; }
   .selo-inativo { @apply selo bg-slate-100 text-slate-600; }
+  .selo-erro { @apply selo bg-red-50 text-red-700; }
+  .selo-aviso { @apply selo bg-amber-50 text-amber-700; }
+  .selo-info { @apply selo bg-primaria-50 text-primaria-800; }
 }
 
 /* HTMX: area que esta sendo atualizada fica esmaecida */

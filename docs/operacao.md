@@ -39,6 +39,10 @@ Requisitos: VPS Linux com Docker e o plugin Docker Compose; um domínio com o DN
 
 Atualizar o sistema: `git pull && docker compose up -d --build` (as migrações rodam sozinhas).
 
+## 2.1 E-mail das notificações
+
+Avisos de chamado, orçamento, saldo baixo etc. também saem por e-mail. O serviço `notificacoes` do compose roda `enviar_notificacoes` a cada minuto. Para ligar o envio de verdade, preencha no `.env` os dados do serviço de e-mail da prefeitura (`EMAIL_BACKEND=django.core.mail.backends.smtp.EmailBackend`, `EMAIL_HOST`, `EMAIL_PORT`, `EMAIL_HOST_USER`, `EMAIL_HOST_PASSWORD`, `DEFAULT_FROM_EMAIL`) e o endereço do sistema em `SITE_URL` (vira o link nos e-mails). Enquanto o backend for o padrão (`console`), os e-mails só aparecem no log: `docker compose logs notificacoes`. Os avisos dentro do sistema (sino) funcionam sempre. Para ver e-mails que falharam: tabela `notificacoes` com `status = 'ERRO'`.
+
 ## 3. Backup diário
 
 O script `scripts/backup.sh` faz o dump do banco (formato custom), confere que o arquivo abre, criptografa com AES-256 e apaga os arquivos mais antigos que `RETENCAO_DIAS`. Se existirem anexos, empacota e criptografa também. Os arquivos ficam em `./backups/`.

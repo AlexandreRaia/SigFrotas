@@ -7,7 +7,7 @@ from django.db import DatabaseError, transaction
 from django.test import SimpleTestCase
 
 from apps.core.models import Perfil
-from apps.core.services import sincronizar_perfis
+from apps.core.services import criar_municipio, sincronizar_perfis
 from apps.core.tenant import com_municipio
 from apps.core.validadores import validar_cnpj, validar_cpf, validar_cpf_ou_cnpj
 from apps.financeiro.models import Contrato, Empenho, FiscalContrato, Fornecedor, LancamentoEmpenho, LiberacaoEmpenho, SaldoEmpenho
@@ -75,9 +75,10 @@ class SincronizarPerfisTest(DuasPrefeiturasTest):
         self.assertEqual(sincronizar_perfis(self.a), {})  # rodar de novo nao muda nada
 
     def test_recria_perfil_que_falte(self):
-        with com_municipio(self.a.id):
-            Perfil.objects.filter(municipio=self.a, codigo='MOTORISTA').delete()  # nenhum usuario usa este
-        self.assertEqual(list(sincronizar_perfis(self.a)), ['MOTORISTA'])
+        nova = criar_municipio(nome='Prefeitura C', slug='c', uf='SP', cnpj='33333333000133')  # sem usuarios: da para apagar um perfil
+        with com_municipio(nova.id):
+            Perfil.objects.filter(municipio=nova, codigo='CONSULTA').delete()
+        self.assertEqual(list(sincronizar_perfis(nova)), ['CONSULTA'])
 
     def test_nao_mexe_na_outra_prefeitura(self):
         with com_municipio(self.b.id):

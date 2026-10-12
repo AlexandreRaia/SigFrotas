@@ -5,8 +5,9 @@ import mimetypes
 from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.db import transaction
+from django.utils import timezone
 
-from .models import Anexo, Auditoria, Municipio, Perfil, Usuario
+from .models import Anexo, Auditoria, Municipio, Notificacao, Perfil, Sequencia, Usuario
 from .permissoes import PERFIS_PADRAO
 from .tenant import com_municipio
 
@@ -46,6 +47,48 @@ def criar_usuario(*, municipio, perfil_codigo, nome, email, senha, **extras):
     with com_municipio(municipio.id):
         perfil = Perfil.objects.get(municipio=municipio, codigo=perfil_codigo)
         return Usuario.objects.create_user(municipio, email, nome, perfil, senha, **extras)
+
+
+def proximo_numero(municipio_id, nome, ano=None):
+    """CH-2026-0001, CH-2026-0002... Contador por prefeitura, tipo e ano, travado contra numeros repetidos."""
+    ano = ano or timezone.localdate().year
+    with transaction.atomic():
+        sequencia, _ = Sequencia.objects.select_for_update().get_or_create(municipio_id=municipio_id, nome=nome, ano=ano)
+        sequencia.ultimo += 1
+        sequencia.save(update_fields=['ultimo'])
+    return f'{nome}-{ano}-{sequencia.ultimo:04d}'
+
+
+def config_da_prefeitura(municipio_id, chave, padrao):
+    """Regra da prefeitura em municipios.config (prazos, numero de aprovacoes, percentuais...)."""
+    config = Municipio.objects.filter(pk=municipio_id).values_list('config', flat=True).first() or {}
+    return config.get(chave, padrao)
+
+
+def usuarios_com_permissao(municipio_id, permissao):
+    candidatos = Usuario.objects.filter(municipio_id=municipio_id, ativo=True).select_related('perfil')
+    return [u for u in candidatos if u.tem_permissao(permissao)]
+
+
+def notificar(usuarios, assunto, corpo='', *, link='', entidade='', entidade_id=None, exceto=None, sem_repetir=False):
+    """Avisa cada usuario no sistema e, se a prefeitura nao desligou (config 'email_notificacoes'), na fila de e-mail.
+
+    O e-mail so sai quando roda `manage.py enviar_notificacoes` (a cada minuto no servidor). `exceto`: quem fez a acao.
+    `sem_repetir`: nao cria outro aviso se o usuario ja tem um nao lido sobre a mesma entidade (ex.: varias mensagens do chat).
+    """
+    vistos = set()
+    for usuario in usuarios:
+        if usuario is None or not usuario.ativo or usuario.pk in vistos or (exceto is not None and usuario.pk == exceto.pk):
+            continue
+        vistos.add(usuario.pk)
+        if sem_repetir and Notificacao.objects.filter(usuario=usuario, canal='APP', entidade=entidade, entidade_id=entidade_id,
+                                                      assunto=assunto).exclude(status='LIDA').exists():
+            continue
+        comuns = dict(municipio_id=usuario.municipio_id, usuario=usuario, assunto=assunto, corpo=corpo, link=link,
+                      entidade=entidade, entidade_id=entidade_id)
+        Notificacao.objects.create(canal='APP', **comuns)
+        if usuario.email and config_da_prefeitura(usuario.municipio_id, 'email_notificacoes', True):
+            Notificacao.objects.create(canal='EMAIL', email_destino=usuario.email, **comuns)
 
 
 def registrar_consulta(*, usuario, objeto, detalhe=''):

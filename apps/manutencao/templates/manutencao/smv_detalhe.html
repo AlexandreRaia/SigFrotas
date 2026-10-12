@@ -1,0 +1,143 @@
+{% extends 'base.html' %}
+{% load sigfrotas %}
+{% block titulo %}SMV {{ smv.numero }} · SigFrotas{% endblock %}
+{% block conteudo %}
+<div class="mb-4">
+  <h1 class="text-2xl font-semibold tracking-tight">SMV {{ smv.numero }}
+    <span class="{{ smv.etapa|selo }} ml-2 align-middle">{{ smv.get_etapa_display }}</span></h1>
+  <p class="text-slate-600">{{ smv.veiculo }}{% if smv.veiculo.modelo %} · {{ smv.veiculo.modelo }}{% endif %} · {{ smv.get_tipo_display }} · oficina: {{ smv.fornecedor|default:"a definir" }}</p>
+  {% if smv.chamado %}<p class="text-slate-600">Veio do chamado <a class="link-acao" href="{% url 'chamados_detalhe' smv.chamado.pk %}">{{ smv.chamado.numero }}</a>.</p>{% endif %}
+</div>
+
+{# etapas #}
+<ol class="mb-8 flex flex-wrap gap-2 text-sm">
+  {% for codigo, nome in smv.ETAPAS %}{% if codigo != 'CANCELADA' %}
+  <li class="rounded-full px-3 py-1 {% if codigo == smv.etapa %}bg-primaria-700 font-semibold text-white{% else %}bg-slate-100 text-slate-600{% endif %}">{{ nome }}</li>
+  {% endif %}{% endfor %}
+  {% if smv.etapa == 'CANCELADA' %}<li class="selo-erro">Cancelada</li>{% endif %}
+</ol>
+
+<div class="mb-8 grid gap-6 lg:grid-cols-2">
+  <section class="cartao p-5">
+    <h2 class="mb-3 text-lg font-semibold">Entrada</h2>
+    <dl class="grid grid-cols-[9rem_1fr] gap-x-4 gap-y-1">
+      <dt class="text-slate-600">Entrada em</dt><dd>{{ smv.entrada_em|date:"d/m/Y H:i"|default:"-" }}</dd>
+      <dt class="text-slate-600">Km</dt><dd>{{ smv.entrada_km|default_if_none:"-" }}</dd>
+      <dt class="text-slate-600">Tanque</dt><dd>{{ smv.get_entrada_tanque_display|default:"-" }}</dd>
+      <dt class="text-slate-600">Centro de custo</dt><dd>{{ smv.centro_custo|default:"-" }}</dd>
+      <dt class="text-slate-600">Contrato</dt><dd>{{ smv.contrato|default:"-" }}</dd>
+      <dt class="text-slate-600">Substituto</dt><dd>{{ smv.veiculo_substituto|default:"-" }}</dd>
+    </dl>
+    <p class="mt-3 font-medium">Defeito relatado</p>
+    <p class="whitespace-pre-line text-slate-700">{{ smv.defeito_relatado|default:"-" }}</p>
+  </section>
+  <section class="cartao p-5">
+    <h2 class="mb-3 text-lg font-semibold">Saída</h2>
+    {% if smv.saida_em %}
+    <dl class="grid grid-cols-[9rem_1fr] gap-x-4 gap-y-1">
+      <dt class="text-slate-600">Saída em</dt><dd>{{ smv.saida_em|date:"d/m/Y H:i" }}</dd>
+      <dt class="text-slate-600">Km</dt><dd>{{ smv.saida_km|default_if_none:"-" }}</dd>
+      <dt class="text-slate-600">Tanque</dt><dd>{{ smv.get_saida_tanque_display|default:"-" }}</dd>
+    </dl>
+    {% if smv.observacao_entrega %}<p class="mt-3 whitespace-pre-line text-slate-700">{{ smv.observacao_entrega }}</p>{% endif %}
+    {% else %}<p class="text-slate-600">O veículo ainda não saiu da oficina.</p>{% endif %}
+    {% if pode_entregar %}
+    <form method="post" action="{% url 'smv_entrega' smv.pk %}" class="mt-4 grid gap-3 sm:grid-cols-2">{% csrf_token %}
+      {% for campo in form_entrega %}<div class="{% if campo.name == 'observacao' %}sm:col-span-2{% endif %}"><label for="{{ campo.id_for_label }}" class="mb-1 block text-sm font-medium">{{ campo.label }}</label>{{ campo }}</div>{% endfor %}
+      <button class="btn-primario justify-self-start sm:col-span-2">Registrar entrega</button>
+    </form>
+    {% endif %}
+  </section>
+</div>
+
+<section class="cartao mb-8 p-5">
+  <h2 class="mb-3 text-lg font-semibold">Diagnóstico</h2>
+  {% if smv.diagnostico %}<p class="whitespace-pre-line">{{ smv.diagnostico }}</p>{% else %}<p class="text-slate-600">A oficina ainda não registrou o diagnóstico.</p>{% endif %}
+  {% if pode_diagnosticar %}
+  <form method="post" action="{% url 'smv_diagnostico' smv.pk %}" class="mt-4 grid max-w-2xl gap-3">{% csrf_token %}
+    {% for campo in form_diagnostico %}<div><label for="{{ campo.id_for_label }}" class="mb-1 block text-sm font-medium">{{ campo.label }}</label>{{ campo }}<p class="mt-1 text-sm text-slate-600">{{ campo.help_text }}</p></div>{% endfor %}
+    <button class="btn-secundario justify-self-start">Salvar diagnóstico</button>
+  </form>
+  {% endif %}
+</section>
+
+<section class="cartao mb-8 p-5">
+  <div class="mb-3 flex items-center justify-between">
+    <h2 class="text-lg font-semibold">Orçamentos</h2>
+    {% if pode_criar_orcamento %}
+    <form method="post" action="{% url 'smv_orcamento_novo' smv.pk %}">{% csrf_token %}<button class="btn-primario">{% if orcamentos %}Nova revisão{% else %}Criar orçamento{% endif %}</button></form>
+    {% endif %}
+  </div>
+  <table class="w-full text-left">
+    <thead class="text-slate-600"><tr><th class="py-2 font-semibold">Número</th><th class="py-2 font-semibold">Rev.</th><th class="py-2 font-semibold">Situação</th><th class="py-2 font-semibold">Total</th><th class="py-2 font-semibold">Economia</th><th></th></tr></thead>
+    <tbody class="divide-y divide-slate-100">
+      {% for o in orcamentos %}
+      <tr><td class="py-2">{{ o.numero }}</td><td class="py-2">{{ o.revisao }}</td><td class="py-2"><span class="{{ o.status|selo }}">{{ o.get_status_display }}</span></td>
+        <td class="py-2">{{ o.valor_total|moeda }}</td><td class="py-2">{% if o.revisao > 1 or o.status == 'APROVADO' %}{{ o.valor_economizado|moeda }}{% else %}-{% endif %}</td>
+        <td class="py-2 text-right"><a class="link-acao" href="{% url 'orcamentos_detalhe' o.pk %}">Abrir</a></td></tr>
+      {% empty %}<tr><td colspan="6" class="py-4 text-slate-600">Nenhum orçamento ainda.</td></tr>{% endfor %}
+    </tbody>
+  </table>
+</section>
+
+{% if aprovado and aprovado.nf_total %}
+<section class="cartao mb-8 p-5">
+  <h2 class="mb-3 text-lg font-semibold">Nota fiscal</h2>
+  <dl class="grid grid-cols-[12rem_1fr] gap-x-4 gap-y-1">
+    <dt class="text-slate-600">Peças</dt><dd>{% if aprovado.nf_pecas_numero %}NF {{ aprovado.nf_pecas_numero }} · {{ aprovado.nf_pecas_valor|moeda }}{% else %}-{% endif %}</dd>
+    <dt class="text-slate-600">Serviços</dt><dd>{% if aprovado.nf_servicos_numero %}NF {{ aprovado.nf_servicos_numero }} · {{ aprovado.nf_servicos_valor|moeda }}{% else %}-{% endif %}</dd>
+    <dt class="text-slate-600">Total das notas</dt><dd class="font-semibold">{{ aprovado.nf_total|moeda }} <span class="font-normal text-slate-600">(aprovado: {{ aprovado.valor_total|moeda }})</span></dd>
+    <dt class="text-slate-600">Emissão</dt><dd>{{ aprovado.nf_emissao|data_br|default:"-" }}</dd>
+  </dl>
+</section>
+{% endif %}
+
+{% if pode_enviar_nf %}
+<section class="cartao mb-8 p-5">
+  <h2 class="mb-1 text-lg font-semibold">Enviar nota fiscal</h2>
+  <p class="mb-4 text-slate-600">Peças e serviços em notas separadas. O total não pode passar de {{ aprovado.valor_total|moeda }} (valor aprovado).</p>
+  <form method="post" enctype="multipart/form-data" action="{% url 'smv_nota_fiscal' smv.pk %}" class="grid gap-3 sm:grid-cols-2">{% csrf_token %}
+    {% for campo in form_nf %}<div><label for="{{ campo.id_for_label }}" class="mb-1 block text-sm font-medium">{{ campo.label }}</label>{{ campo }}</div>{% endfor %}
+    <button class="btn-primario justify-self-start sm:col-span-2">Enviar nota fiscal</button>
+  </form>
+</section>
+{% endif %}
+
+{% if pode_conferir or pode_cancelar %}
+<section class="cartao mb-8 p-5">
+  <h2 class="mb-3 text-lg font-semibold">Ações da gestão</h2>
+  <div class="flex flex-wrap items-start gap-4">
+    {% if pode_conferir %}
+    <form method="post" action="{% url 'smv_conferir_nota' smv.pk %}" onsubmit="return confirm('Conferir a nota? A reserva do empenho vira consumo e a SMV é concluída.')">{% csrf_token %}<button class="btn-primario">Conferir nota e concluir</button></form>
+    {% endif %}
+    {% if pode_cancelar %}
+    <form method="post" action="{% url 'smv_cancelar' smv.pk %}" class="grid max-w-md gap-2">{% csrf_token %}
+      <label for="id_motivo" class="font-medium">Cancelar a SMV</label>{{ form_motivo.motivo }}
+      <button class="btn-secundario justify-self-start" onclick="return confirm('Cancelar esta SMV? O valor reservado volta ao empenho.')">Cancelar SMV</button>
+    </form>
+    {% endif %}
+  </div>
+</section>
+{% endif %}
+
+<div class="mb-8 grid gap-6 lg:grid-cols-3">
+  <section class="cartao p-5 lg:col-span-2">
+    <h2 class="mb-3 text-lg font-semibold">Chat com a oficina</h2>
+    {% include 'manutencao/_mensagens.html' %}
+    <form method="post" enctype="multipart/form-data" action="{% url 'smv_mensagens' smv.pk %}" class="mt-3 grid gap-3"
+          hx-post="{% url 'smv_mensagens' smv.pk %}" hx-encoding="multipart/form-data" hx-target="#chat" hx-swap="outerHTML"
+          hx-on::after-request="if (event.detail.successful) this.reset()">{% csrf_token %}
+      {{ form_mensagem.texto }}
+      <div class="flex flex-wrap items-center gap-3"><input type="file" name="arquivo" id="id_arquivo" accept="image/*,video/*,audio/*,.pdf" class="max-w-xs"><button class="btn-primario">Enviar</button></div>
+    </form>
+  </section>
+  <section class="cartao p-5">
+    <h2 class="mb-3 text-lg font-semibold">Histórico</h2>
+    <ul class="space-y-3">
+      {% for h in historico %}<li><span class="{{ h.etapa|selo }}">{{ h.etapa }}</span> <span class="text-sm text-slate-500">{{ h.em|date:"d/m/Y H:i" }}</span>
+        <p class="text-slate-700">{{ h.observacao }}{% if h.usuario %} <span class="text-slate-500">· {{ h.usuario }}</span>{% endif %}</p></li>{% endfor %}
+    </ul>
+  </section>
+</div>
+<a href="{% url 'smv_lista' %}" class="link-acao">&larr; Voltar para as SMVs</a>
+{% endblock %}

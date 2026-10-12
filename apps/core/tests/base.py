@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import date, timedelta
 from decimal import Decimal
 
 from django.conf import settings
@@ -14,6 +14,7 @@ from apps.frota.models import CategoriaVeiculo, Veiculo
 from apps.pessoas.models import Motorista
 
 SENHA = 'Senha-Forte-123'
+HOJE = date.today()   # datas dos empenhos sao relativas a hoje: os testes nao envelhecem
 
 
 def usar_papel_da_aplicacao(municipio_id=None):
@@ -33,7 +34,7 @@ def usar_papel_dono():
 
 class DuasPrefeiturasTest(TestCase):
     """Cria as prefeituras A e B. Cada uma tem: secretarias SMA e SME, unidade, centros de custo 100 (SMA) e 200 (SME),
-    usuarios de cada perfil, fornecedor, contrato, fiscal, dois empenhos, dois veiculos e um motorista.
+    usuarios de cada perfil (e gestor2, motorista_usuario e oficina), fornecedor, contrato, fiscal, dois empenhos, dois veiculos e um motorista.
 
     Atributos: <coisa>_a e <coisa>_b. Usuarios: admin, gestor, gestor_unidade (da SMA), fiscal (do centro 100),
     consulta e solicitante. Os dois veiculos tem placa igual nas duas prefeituras (a placa so e unica por prefeitura).
@@ -73,8 +74,8 @@ class DuasPrefeiturasTest(TestCase):
                     vigencia_ini=date(2026, 1, 1), vigencia_fim=date(2026, 12, 31))
                 FiscalContrato.objects.create(municipio=municipio, contrato=contrato, centro_custo=centro,
                                               usuario=getattr(cls, f'fiscal_{sufixo}'))
-                dados = dict(municipio=municipio, finalidade='MANUTENCAO', exercicio=2026, vigencia_ini=date(2026, 1, 1),
-                             vigencia_fim=date(2026, 12, 31), valor_empenhado=Decimal('1000.00'), liberar_total=True)
+                dados = dict(municipio=municipio, finalidade='MANUTENCAO', exercicio=2026, vigencia_ini=HOJE - timedelta(days=90),
+                             vigencia_fim=HOJE + timedelta(days=270), valor_empenhado=Decimal('1000.00'), liberar_total=True)
                 empenho = criar_empenho(numero='1', centro_custo=centro, contrato=contrato, **dados)
                 empenho2 = criar_empenho(numero='2', centro_custo=centro2, **dados)
                 categoria = CategoriaVeiculo.objects.create(municipio=municipio, nome='Automóvel', cnh_minima='B')
@@ -85,6 +86,11 @@ class DuasPrefeiturasTest(TestCase):
                 motorista = Motorista.objects.create(
                     municipio=municipio, prontuario='100', nome=f'Motorista {sufixo.upper()}', cpf='52998224725',
                     secretaria=secretaria, cnh_categoria='B', cnh_numero='12345678900', cnh_validade=date(2030, 1, 1))
+            for chave, perfil, nome, extras in [('gestor2', 'GESTOR_FROTA', 'Gestor 2', {}), ('motorista_usuario', 'MOTORISTA', 'Motorista', {}),
+                                                ('oficina', 'OFICINA', 'Oficina', {'fornecedor': fornecedor})]:
+                setattr(cls, f'{chave}_{sufixo}', criar_usuario(
+                    municipio=municipio, perfil_codigo=perfil, nome=f'{nome} {sufixo.upper()}', email=f'{chave}@{sufixo}.test',
+                    senha=SENHA, **extras))
             for nome_attr, valor in (('fornecedor', fornecedor), ('contrato', contrato), ('empenho', empenho),
                                      ('empenho2', empenho2), ('categoria', categoria), ('veiculo', veiculo),
                                      ('veiculo2', veiculo2), ('motorista', motorista)):

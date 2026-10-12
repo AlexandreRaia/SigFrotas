@@ -23,6 +23,9 @@ urlpatterns = [
     path('usuarios/<int:pk>/senha/', views.RedefinirSenha.as_view(), name='usuarios_senha'),
     path('auditoria/', views.ListaAuditoria.as_view(), name='auditoria'),
     path('anexos/<int:pk>/', views.baixar_anexo, name='anexo_baixar'),
+    path('notificacoes/', views.ListaNotificacoes.as_view(), name='notificacoes'),
+    path('notificacoes/ler-todas/', views.ler_todas_notificacoes, name='notificacoes_ler_todas'),
+    path('notificacoes/<int:pk>/abrir/', views.abrir_notificacao, name='notificacao_abrir'),
 ]
 
 for base, rotas in views.CADASTROS.items():

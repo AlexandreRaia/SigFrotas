@@ -19,6 +19,17 @@ class LoginForm(forms.Form):
             self.fields['prefeitura'].widget = forms.HiddenInput()
 
 
+class DecimalBR(forms.DecimalField):
+    """Aceita o numero como o brasileiro digita: 1.234,56 ou 1234,56 (e tambem 1234.56)."""
+
+    def to_python(self, value):
+        if isinstance(value, str):
+            value = value.strip()
+            if ',' in value:
+                value = value.replace('.', '').replace(',', '.')
+        return super().to_python(value)
+
+
 class FormularioDaPrefeitura(forms.ModelForm):
     """Formulario de cadastro da prefeitura logada. `unicos` lista combinacoes de campos que nao podem repetir."""
     unicos = ()

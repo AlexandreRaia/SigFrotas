@@ -29,9 +29,10 @@ powershell -File scripts\css.ps1              # gera o CSS (static\css\app.css)
 | `financeiro` | fornecedores, contratos, fiscais, empenhos e saldo | `docs/fase1_cadastros.md` |
 | `frota` | veículos, categorias, marcas e modelos, leituras, lotações | `docs/fase1_cadastros.md` |
 | `pessoas` | motoristas (dados pessoais protegidos e auditados) | `docs/fase1_cadastros.md` |
+| `manutencao` | chamados, SMV, orçamento, aprovação com reserva do empenho, nota fiscal, chat, portal da oficina | `docs/fase2_manutencao.md` |
 | `importacao` | carga inicial de veículos e motoristas por planilha CSV | `docs/fase1_cadastros.md` |
 
-Depois de atualizar o código, rode `migrate` e `atualizar_perfis` (acrescenta aos perfis as permissões dos módulos novos; na VPS o `entrypoint.sh` faz isso sozinho). Regras de escopo (quem vê o quê) em `apps/core/escopo.py`; saldo de empenho só pelo `apps/financeiro/services.py`; km só pelo `apps/frota/services.py`.
+Depois de atualizar o código, rode `migrate` e `atualizar_perfis` (acrescenta aos perfis as permissões dos módulos novos; na VPS o `entrypoint.sh` faz isso sozinho). Regras de escopo (quem vê o quê) em `apps/core/escopo.py`; saldo de empenho só pelo `apps/financeiro/services.py`; km só pelo `apps/frota/services.py`; mudanças de estado da manutenção só pelo `apps/manutencao/services.py`; avisos só por `notificar()` (`apps/core/services.py`). Os e-mails saem com `manage.py enviar_notificacoes` (em desenvolvimento aparecem no terminal; no servidor o serviço `notificacoes` do compose roda a cada minuto).
 
 ## Testes
 

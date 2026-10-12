@@ -1,0 +1,26 @@
+{% extends 'base.html' %}
+{% load sigfrotas %}
+{% block titulo %}Notificações · SigFrotas{% endblock %}
+{% block conteudo %}
+<div class="mb-6 flex items-center justify-between">
+  <h1 class="text-2xl font-semibold tracking-tight">Notificações</h1>
+  {% if notificacoes_nao_lidas %}
+  <form method="post" action="{% url 'notificacoes_ler_todas' %}">{% csrf_token %}<button class="btn-secundario">Marcar todas como lidas</button></form>
+  {% endif %}
+</div>
+<div class="cartao divide-y divide-slate-100">
+  {% for n in object_list %}
+  <a href="{% url 'notificacao_abrir' n.pk %}" class="flex items-start gap-3 px-5 py-4 hover:bg-slate-50">
+    <span class="mt-2 h-2.5 w-2.5 shrink-0 rounded-full {% if n.status != 'LIDA' %}bg-primaria-700{% else %}bg-slate-200{% endif %}" aria-hidden="true"></span>
+    <span class="min-w-0 flex-1">
+      <span class="block {% if n.status != 'LIDA' %}font-semibold{% endif %}">{{ n.assunto }}</span>
+      {% if n.corpo %}<span class="block text-slate-600">{{ n.corpo|truncatechars:160 }}</span>{% endif %}
+    </span>
+    <span class="shrink-0 text-sm text-slate-500">{{ n.criado_em|date:"d/m/Y H:i" }}</span>
+  </a>
+  {% empty %}
+  <p class="px-5 py-10 text-center text-slate-600">Nenhuma notificação.</p>
+  {% endfor %}
+</div>
+{% include 'core/paginacao.html' %}
+{% endblock %}

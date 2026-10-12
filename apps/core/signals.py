@@ -29,7 +29,8 @@ def _grava(instance, acao, antes, depois):
 
 
 def _auditavel(instance, raw=False):
-    return isinstance(instance, ModeloDoMunicipio) and not raw
+    # sem_auditoria: tabelas de apoio de alto volume (contadores, notificacoes) nao entram na auditoria
+    return isinstance(instance, ModeloDoMunicipio) and not raw and not getattr(instance, 'sem_auditoria', False)
 
 
 def antes_de_salvar(sender, instance, raw=False, **kwargs):

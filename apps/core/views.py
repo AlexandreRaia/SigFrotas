@@ -17,7 +17,7 @@ from .forms import (CentroCustoForm, FiltroAuditoriaForm, LoginForm, NovaSenhaFo
                     UsuarioEdicaoForm, UsuarioNovoForm)
 from .formatos import valor_da_coluna
 from .htmx import ParcialMixin, com_mensagem, e_htmx, redirecionar
-from .models import Anexo, Auditoria, CentroCusto, Municipio, Secretaria, Unidade, Usuario
+from .models import Anexo, Auditoria, CentroCusto, Municipio, Notificacao, Secretaria, Unidade, Usuario
 from .services import registrar_consulta
 
 
@@ -301,7 +301,8 @@ class ListaAuditoria(ParcialMixin, PermissaoMixin, PaginacaoMixin, ListView):
 
 
 # Quem pode baixar anexo de cada tipo de registro (entidade sem regra: qualquer usuario da prefeitura).
-PERMISSAO_DO_ANEXO = {'veiculos': 'frota.ver', 'motoristas': 'pessoas.dados_pessoais'}
+PERMISSAO_DO_ANEXO = {'veiculos': 'frota.ver', 'motoristas': 'pessoas.dados_pessoais', 'smv_mensagens': 'manutencao.ver',
+                      'orcamentos': 'manutencao.ver'}
 
 
 @login_required
@@ -317,4 +318,38 @@ def baixar_anexo(request, pk):
     elif anexo.entidade == 'motoristas':
         from apps.pessoas.views import _motorista
         registrar_consulta(usuario=request.user, objeto=_motorista(request, anexo.entidade_id), detalhe=f'anexo {anexo.pk}')
+    elif anexo.entidade == 'smv_mensagens':  # anexo de mensagem do chat: precisa enxergar a SMV
+        from apps.manutencao.models import SmvMensagem
+        from apps.manutencao.views import _smv
+        _smv(request, get_object_or_404(SmvMensagem, pk=anexo.entidade_id, municipio_id=request.user.municipio_id).smv_id)
+    elif anexo.entidade == 'orcamentos':  # nota fiscal
+        from apps.manutencao.views import _orcamento
+        _orcamento(request, anexo.entidade_id)
     return FileResponse(anexo.arquivo.open('rb'), as_attachment=True, filename=anexo.nome_arquivo)
+
+# --- Notificacoes (o sino do cabecalho) --------------------------------------------------------
+
+class ListaNotificacoes(LoginRequiredMixin, PaginacaoMixin, ListView):
+    template_name = 'core/notificacoes.html'
+    paginate_by = 30
+
+    def get_queryset(self):
+        return Notificacao.objects.filter(usuario=self.request.user, canal='APP')
+
+
+@login_required
+def abrir_notificacao(request, pk):
+    """Marca como lida e vai para a pagina do aviso."""
+    aviso = get_object_or_404(Notificacao, pk=pk, usuario=request.user, canal='APP')
+    if aviso.status != 'LIDA':
+        aviso.status = 'LIDA'
+        aviso.save(update_fields=['status'])
+    destino = aviso.link if aviso.link.startswith('/') and not aviso.link.startswith('//') else reverse('notificacoes')
+    return redirect(destino)
+
+
+@login_required
+@require_POST
+def ler_todas_notificacoes(request):
+    Notificacao.objects.filter(usuario=request.user, canal='APP').exclude(status='LIDA').update(status='LIDA')
+    return redirect('notificacoes')

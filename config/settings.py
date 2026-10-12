@@ -25,6 +25,7 @@ INSTALLED_APPS = [
     'apps.financeiro',
     'apps.frota',
     'apps.pessoas',
+    'apps.manutencao',
     'apps.importacao',
 ]
 
@@ -51,6 +52,7 @@ TEMPLATES = [{
         'django.template.context_processors.request',
         'django.contrib.auth.context_processors.auth',
         'django.contrib.messages.context_processors.messages',
+        'apps.core.contexto_templates.notificacoes',
     ]},
 }]
 
@@ -97,6 +99,18 @@ if not DEBUG:
     SECURE_HSTS_SECONDS = 31536000
     SECURE_CONTENT_TYPE_NOSNIFF = True
     CSRF_TRUSTED_ORIGINS = [f'https://{h}' for h in ALLOWED_HOSTS if not h.startswith('.')]
+
+# --- E-mail (notificacoes) --------------------------------------------------
+# Em desenvolvimento os e-mails aparecem no terminal. Em producao: EMAIL_BACKEND=django.core.mail.backends.smtp.EmailBackend
+# e os dados do servico de e-mail nas variaveis abaixo (nunca no codigo).
+EMAIL_BACKEND = os.environ.get('EMAIL_BACKEND', 'django.core.mail.backends.console.EmailBackend')
+EMAIL_HOST = os.environ.get('EMAIL_HOST', '')
+EMAIL_PORT = int(os.environ.get('EMAIL_PORT', '587'))
+EMAIL_HOST_USER = os.environ.get('EMAIL_HOST_USER', '')
+EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_HOST_PASSWORD', '')
+EMAIL_USE_TLS = os.environ.get('EMAIL_USE_TLS', 'True') == 'True'
+DEFAULT_FROM_EMAIL = os.environ.get('DEFAULT_FROM_EMAIL', 'sigfrotas@localhost')
+SITE_URL = os.environ.get('SITE_URL', 'http://127.0.0.1:8000')  # endereco do sistema, para os links dos e-mails
 
 # --- Idioma e fuso ----------------------------------------------------------
 LANGUAGE_CODE = 'pt-br'
