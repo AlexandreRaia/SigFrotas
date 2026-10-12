@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="pt-br">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block titulo %}SigFrotas{% endblock %}</title>
+  {# Tailwind pelo CDN so no desenvolvimento; compilar o CSS antes de ir para producao. #}
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-50 text-gray-900">
+  {% if user.is_authenticated %}
+  <header class="bg-slate-800 text-white">
+    <nav class="mx-auto flex max-w-6xl flex-wrap items-center gap-4 px-4 py-3 text-sm">
+      <a href="{% url 'inicio' %}" class="font-semibold">SigFrotas</a>
+      {% if 'estrutura.gerir' in user.perfil.permissoes %}
+        <a href="{% url 'secretarias_lista' %}" class="hover:underline">Secretarias</a>
+        <a href="{% url 'unidades_lista' %}" class="hover:underline">Unidades</a>
+        <a href="{% url 'centros_custo_lista' %}" class="hover:underline">Centros de custo</a>
+      {% endif %}
+      {% if 'usuarios.gerir' in user.perfil.permissoes %}<a href="{% url 'usuarios_lista' %}" class="hover:underline">Usuários</a>{% endif %}
+      {% if 'auditoria.ver' in user.perfil.permissoes %}<a href="{% url 'auditoria' %}" class="hover:underline">Auditoria</a>{% endif %}
+      <span class="ml-auto">{{ user.nome }} · {{ user.municipio.nome }}</span>
+      <form method="post" action="{% url 'sair' %}">{% csrf_token %}<button class="underline">Sair</button></form>
+    </nav>
+  </header>
+  {% endif %}
+  <main class="mx-auto max-w-6xl px-4 py-6">
+    {% for mensagem in messages %}
+      <p class="mb-4 rounded px-3 py-2 text-sm {% if mensagem.tags == 'error' %}bg-red-100 text-red-800{% else %}bg-green-100 text-green-800{% endif %}">{{ mensagem }}</p>
+    {% endfor %}
+    {% block conteudo %}{% endblock %}
+  </main>
+</body>
+</html>

@@ -1,0 +1,19 @@
+{% extends 'base.html' %}
+{% block titulo %}{{ titulo }} · SigFrotas{% endblock %}
+{% block conteudo %}
+<h1 class="mb-4 text-xl font-semibold">{{ titulo }}</h1>
+<form method="post" class="max-w-lg space-y-3 rounded bg-white p-4 shadow">
+  {% csrf_token %}
+  {{ form.non_field_errors }}
+  {% for campo in form %}
+    <label class="block text-sm font-medium">{{ campo.label }}
+      <span class="mt-1 block font-normal [&_input]:w-full [&_input]:rounded [&_input]:border [&_input]:px-2 [&_input]:py-1 [&_select]:w-full [&_select]:rounded [&_select]:border [&_select]:px-2 [&_select]:py-1">{{ campo }}</span>
+    </label>
+    <div class="text-sm text-red-700">{{ campo.errors }}</div>
+  {% endfor %}
+  <div class="flex gap-3">
+    <button class="rounded bg-slate-800 px-4 py-1.5 text-white">Salvar</button>
+    <a href="{% url base|add:'_lista' %}" class="px-2 py-1.5 underline">Cancelar</a>
+  </div>
+</form>
+{% endblock %}

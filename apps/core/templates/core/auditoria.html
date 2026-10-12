@@ -1,0 +1,31 @@
+{% extends 'base.html' %}
+{% block titulo %}Auditoria · SigFrotas{% endblock %}
+{% block conteudo %}
+<h1 class="mb-4 text-xl font-semibold">Auditoria</h1>
+<form method="get" class="mb-4 flex flex-wrap items-end gap-3 text-sm">
+  {% for campo in filtro %}
+    <label class="font-medium">{{ campo.label }}<br><span class="font-normal [&_input]:rounded [&_input]:border [&_input]:px-2 [&_input]:py-1">{{ campo }}</span></label>
+  {% endfor %}
+  <button class="rounded bg-slate-800 px-3 py-1.5 text-white">Filtrar</button>
+</form>
+<table class="w-full rounded bg-white text-left text-sm shadow">
+  <thead class="bg-gray-100"><tr><th class="px-3 py-2">Quando</th><th class="px-3 py-2">Quem</th><th class="px-3 py-2">Ação</th><th class="px-3 py-2">Tabela</th><th class="px-3 py-2">Registro</th><th class="px-3 py-2">Antes / depois</th></tr></thead>
+  <tbody>
+    {% for a in object_list %}
+    <tr class="border-t align-top">
+      <td class="px-3 py-2">{{ a.em|date:"d/m/Y H:i:s" }}</td>
+      <td class="px-3 py-2">{{ a.usuario_nome }}</td>
+      <td class="px-3 py-2">{{ a.get_acao_display }}</td>
+      <td class="px-3 py-2">{{ a.tabela }}</td>
+      <td class="px-3 py-2">{{ a.registro_id }}</td>
+      <td class="px-3 py-2"><details><summary class="cursor-pointer underline">ver</summary>
+        <pre class="mt-1 max-w-xl overflow-x-auto text-xs">antes: {{ a.dados_antes|default_if_none:"-" }}
+depois: {{ a.dados_depois|default_if_none:"-" }}</pre></details></td>
+    </tr>
+    {% empty %}
+    <tr><td colspan="6" class="px-3 py-6 text-center text-gray-500">Nenhum registro.</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% include 'core/paginacao.html' %}
+{% endblock %}

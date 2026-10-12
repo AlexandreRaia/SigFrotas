@@ -1,0 +1,7 @@
+{% if is_paginated %}
+<div class="mt-4 flex gap-4 text-sm">
+  {% if page_obj.has_previous %}<a class="underline" href="?{{ filtros_url }}page={{ page_obj.previous_page_number }}">Anterior</a>{% endif %}
+  <span>Página {{ page_obj.number }} de {{ paginator.num_pages }}</span>
+  {% if page_obj.has_next %}<a class="underline" href="?{{ filtros_url }}page={{ page_obj.next_page_number }}">Próxima</a>{% endif %}
+</div>
+{% endif %}

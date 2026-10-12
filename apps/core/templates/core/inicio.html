@@ -1,0 +1,5 @@
+{% extends 'base.html' %}
+{% block conteudo %}
+<h1 class="text-xl font-semibold">{{ user.municipio.nome }}</h1>
+<p class="mt-2 text-gray-600">Olá, {{ user.nome }} ({{ user.perfil.nome }}).</p>
+{% endblock %}
