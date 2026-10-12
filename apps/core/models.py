@@ -72,7 +72,6 @@ class Unidade(ModeloDoMunicipio):
     """Divisao dentro da secretaria."""
     secretaria = models.ForeignKey(Secretaria, on_delete=models.PROTECT)
     nome = models.TextField()
-    codigo_externo = models.CharField(max_length=30, blank=True)  # codigo da unidade na Prime
     ativo = models.BooleanField(default=True)
     criado_em = models.DateTimeField(auto_now_add=True)
     atualizado_em = models.DateTimeField(auto_now=True)
@@ -90,7 +89,6 @@ class CentroCusto(ModeloDoMunicipio):
     secretaria = models.ForeignKey(Secretaria, null=True, blank=True, on_delete=models.PROTECT)
     codigo = models.CharField(max_length=30)
     nome = models.TextField()
-    codigo_externo = models.CharField(max_length=30, blank=True)  # como aparece na Prime
     ativo = models.BooleanField(default=True)
     criado_em = models.DateTimeField(auto_now_add=True)
     atualizado_em = models.DateTimeField(auto_now=True)

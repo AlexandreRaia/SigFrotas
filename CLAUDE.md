@@ -86,7 +86,7 @@ Um módulo não lê tabelas de outro quando há regra de negócio: usa o serviç
   - **Veículo não cadastrado:** gravar o abastecimento com `veiculo_id` nulo e `placa_externa`, e listar como pendência de vínculo. A resposta também serve para a **carga inicial** de veículos e motoristas (ver seção 12, fase 1).
   - **LGPD:** a resposta traz **CPF e CNH do condutor**. Usar só para localizar o motorista cadastrado e **não gravar** no `payload`. Do cartão (`numerCartao`) guardar só os últimos dígitos.
   - **Credenciais na URL:** `key` vai na query string. **Nunca registrar a URL completa em log**; mascarar a chave. Erros vêm como JSON (`{"Message": "nao autorizado"}` etc.): tratar como falha da execução, não como "zero registros".
-  - `unidades`/subunidades da Prime se ligam às nossas por `unidades.codigo_externo` e `centros_custo.codigo_externo`.
+  - Unidades/subunidades e centros de custo da Prime se ligam aos nossos por uma **tabela de correspondência própria da integração** (criada na fase 5), não por colunas nos cadastros do núcleo. Ver `docs/decisoes.md`.
   - **Falta ainda:** um **JSON real de retorno** (formato dos números e valores de `status`, `tipo_servico`, `TipoFrota`) e o formato do retorno do endpoint de **empenho** (não descrito).
 - **E-mail:** serviço transacional; notificações pela fila `notificacoes`. Solicitações aprovadas enviam arquivo `.ics`.
 - **Sisgep / TCE:** verificar com o Alexandre antes de modelar relatórios oficiais.

@@ -26,7 +26,6 @@ CREATE TABLE unidades (
   municipio_id bigint NOT NULL REFERENCES municipios(id),
   secretaria_id bigint NOT NULL REFERENCES secretarias(id),
   nome text NOT NULL,
-  codigo_externo varchar(30),
   ativo boolean NOT NULL DEFAULT true,
   criado_em timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
   atualizado_em timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -39,7 +38,6 @@ CREATE TABLE centros_custo (
   secretaria_id bigint REFERENCES secretarias(id),
   codigo varchar(30) NOT NULL,
   nome text NOT NULL,
-  codigo_externo varchar(30),
   ativo boolean NOT NULL DEFAULT true,
   UNIQUE (municipio_id, codigo)
 );

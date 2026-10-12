@@ -1,0 +1,24 @@
+<div class="cartao overflow-x-auto">
+  <table class="w-full text-left">
+    <thead class="border-b border-slate-200 bg-slate-50 text-slate-600">
+      <tr><th class="px-4 py-3 font-semibold">Quando</th><th class="px-4 py-3 font-semibold">Quem</th><th class="px-4 py-3 font-semibold">Ação</th><th class="px-4 py-3 font-semibold">Tabela</th><th class="px-4 py-3 font-semibold">Registro</th><th class="px-4 py-3 font-semibold">Antes / depois</th></tr>
+    </thead>
+    <tbody class="divide-y divide-slate-100">
+      {% for a in object_list %}
+      <tr class="align-top hover:bg-slate-50">
+        <td class="whitespace-nowrap px-4 py-3">{{ a.em|date:"d/m/Y H:i:s" }}</td>
+        <td class="px-4 py-3">{{ a.usuario_nome }}</td>
+        <td class="px-4 py-3">{{ a.get_acao_display }}</td>
+        <td class="px-4 py-3">{{ a.tabela }}</td>
+        <td class="px-4 py-3">{{ a.registro_id }}</td>
+        <td class="px-4 py-3"><details><summary class="link-acao cursor-pointer">ver</summary>
+          <pre class="mt-2 max-w-xl overflow-x-auto rounded-lg bg-slate-50 p-3 text-sm">antes: {{ a.dados_antes|default_if_none:"-" }}
+depois: {{ a.dados_depois|default_if_none:"-" }}</pre></details></td>
+      </tr>
+      {% empty %}
+      <tr><td colspan="6" class="px-4 py-10 text-center text-slate-600">Nenhum registro.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% include 'core/paginacao.html' %}

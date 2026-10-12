@@ -1,7 +1,9 @@
 {% if is_paginated %}
-<div class="mt-4 flex gap-4 text-sm">
-  {% if page_obj.has_previous %}<a class="underline" href="?{{ filtros_url }}page={{ page_obj.previous_page_number }}">Anterior</a>{% endif %}
-  <span>Página {{ page_obj.number }} de {{ paginator.num_pages }}</span>
-  {% if page_obj.has_next %}<a class="underline" href="?{{ filtros_url }}page={{ page_obj.next_page_number }}">Próxima</a>{% endif %}
+<div class="mt-5 flex items-center gap-4">
+  {% if page_obj.has_previous %}<a class="btn-secundario" href="?{{ filtros_url }}page={{ page_obj.previous_page_number }}"
+     hx-get="?{{ filtros_url }}page={{ page_obj.previous_page_number }}" hx-target="#resultado" hx-push-url="true" hx-indicator="#resultado">Anterior</a>{% endif %}
+  <span class="text-slate-600">Página {{ page_obj.number }} de {{ paginator.num_pages }}</span>
+  {% if page_obj.has_next %}<a class="btn-secundario" href="?{{ filtros_url }}page={{ page_obj.next_page_number }}"
+     hx-get="?{{ filtros_url }}page={{ page_obj.next_page_number }}" hx-target="#resultado" hx-push-url="true" hx-indicator="#resultado">Próxima</a>{% endif %}
 </div>
 {% endif %}

@@ -1,0 +1,20 @@
+<tr id="linha-{{ obj.pk }}" class="hover:bg-slate-50 {% if obj.ativo is False %}text-slate-500{% endif %}">
+  {% for v in valores %}
+    <td class="px-4 py-3">
+      {% if v is True %}<span class="selo-ativo">Ativo</span>
+      {% elif v is False %}<span class="selo-inativo">Inativo</span>
+      {% else %}{{ v|default_if_none:"" }}{% endif %}
+    </td>
+  {% endfor %}
+  <td class="px-4 py-3">
+    <div class="flex items-center justify-end gap-4">
+      <a href="{% url base|add:'_editar' obj.pk %}" class="link-acao">Editar</a>
+      {% if base == 'usuarios' %}<a href="{% url 'usuarios_senha' obj.pk %}" class="link-acao">Senha</a>{% endif %}
+      <form method="post" action="{% url base|add:'_alternar' obj.pk %}"
+            hx-post="{% url base|add:'_alternar' obj.pk %}" hx-target="#linha-{{ obj.pk }}" hx-swap="outerHTML"
+            {% if obj.ativo %}hx-confirm="Inativar este cadastro?"{% endif %}>{% csrf_token %}
+        {% if obj.ativo %}<button class="link-perigo">Inativar</button>{% else %}<button class="link-acao">Reativar</button>{% endif %}
+      </form>
+    </div>
+  </td>
+</tr>

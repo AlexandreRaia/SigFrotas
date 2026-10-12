@@ -51,7 +51,6 @@ CREATE TABLE unidades (                             -- divisoes dentro da secret
     municipio_id  bigint NOT NULL REFERENCES municipios(id),
     secretaria_id bigint NOT NULL REFERENCES secretarias(id),
     nome          text NOT NULL,
-    codigo_externo varchar(30),                     -- codigo da unidade/subunidade na Prime
     ativo         boolean NOT NULL DEFAULT true,
     criado_em     timestamptz NOT NULL DEFAULT now(),
     atualizado_em timestamptz NOT NULL DEFAULT now(),
@@ -64,7 +63,6 @@ CREATE TABLE centros_custo (
     secretaria_id bigint REFERENCES secretarias(id),
     codigo        varchar(30) NOT NULL,
     nome          text NOT NULL,
-    codigo_externo varchar(30),                     -- como o centro de custo aparece na Prime
     ativo         boolean NOT NULL DEFAULT true,
     UNIQUE (municipio_id, codigo)
 );

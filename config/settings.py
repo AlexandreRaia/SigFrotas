@@ -96,5 +96,6 @@ USE_TZ = True
 # --- Arquivos ---------------------------------------------------------------
 STATIC_URL = 'static/'
 STATIC_ROOT = BASE_DIR / 'staticfiles'
+STATICFILES_DIRS = [BASE_DIR / 'static']
 MEDIA_ROOT = BASE_DIR / 'media'  # em producao: armazenamento compativel com S3
 ANEXO_TAMANHO_MAXIMO = 20 * 1024 * 1024

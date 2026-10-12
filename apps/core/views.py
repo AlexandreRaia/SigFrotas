@@ -2,6 +2,7 @@ from django.contrib import messages
 from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.mixins import LoginRequiredMixin
+from django.contrib.auth.views import redirect_to_login
 from django.core.exceptions import PermissionDenied
 from django.http import FileResponse
 from django.shortcuts import get_object_or_404, redirect, render
@@ -13,6 +14,7 @@ from django.views.generic import CreateView, ListView, UpdateView
 
 from .forms import (CentroCustoForm, FiltroAuditoriaForm, LoginForm, NovaSenhaForm, SecretariaForm, UnidadeForm,
                     UsuarioEdicaoForm, UsuarioNovoForm)
+from .htmx import ParcialMixin, com_mensagem, e_htmx, redirecionar
 from .models import Anexo, Auditoria, CentroCusto, Municipio, Secretaria, Unidade, Usuario
 
 
@@ -56,6 +58,11 @@ class PermissaoMixin(LoginRequiredMixin):
             raise PermissionDenied
         return super().dispatch(request, *args, **kwargs)
 
+    def handle_no_permission(self):
+        if e_htmx(self.request) and not self.request.user.is_authenticated:  # sessao expirou no meio do uso
+            return redirecionar(redirect_to_login(self.request.get_full_path(), self.get_login_url())['Location'])
+        return super().handle_no_permission()
+
 
 class DaPrefeituraMixin:
     """Filtra sempre pela prefeitura do usuario (alem da RLS do banco)."""
@@ -75,22 +82,33 @@ class PaginacaoMixin:
         return contexto
 
 
-class Lista(PermissaoMixin, DaPrefeituraMixin, PaginacaoMixin, ListView):
+def valores_da_linha(objeto, colunas):
+    return [getattr(objeto, atributo) for atributo, _ in colunas]
+
+
+class Lista(ParcialMixin, PermissaoMixin, DaPrefeituraMixin, PaginacaoMixin, ListView):
     template_name = 'core/lista.html'
+    template_parcial = 'core/_lista_tabela.html'
     paginate_by = 50
     base = ''           # prefixo dos nomes de url: <base>_lista, <base>_novo, <base>_editar, <base>_alternar
     titulo = ''
     colunas = ()        # (atributo, cabecalho)
 
+    def get_queryset(self):
+        # Uma consulta so, com os cadastros ligados (secretaria, perfil...) que aparecem nas colunas.
+        ligados = [a for a, _ in self.colunas if self.model._meta.get_field(a).many_to_one]
+        return super().get_queryset().select_related(*ligados)
+
     def get_context_data(self, **kwargs):
         contexto = super().get_context_data(**kwargs)
-        contexto['linhas'] = [(obj, [getattr(obj, attr) for attr, _ in self.colunas]) for obj in contexto['object_list']]
+        contexto['linhas'] = [(obj, valores_da_linha(obj, self.colunas)) for obj in contexto['object_list']]
         contexto.update(base=self.base, titulo=self.titulo, cabecalhos=[c for _, c in self.colunas])
         return contexto
 
 
-class CadastroMixin(PermissaoMixin):
+class CadastroMixin(ParcialMixin, PermissaoMixin):
     template_name = 'core/form.html'
+    template_parcial = 'core/_form.html'   # formulario com erros volta sozinho, sem recarregar a pagina
     base = ''
     titulo = ''
 
@@ -104,7 +122,8 @@ class CadastroMixin(PermissaoMixin):
 
     def form_valid(self, form):
         messages.success(self.request, 'Salvo com sucesso.')
-        return super().form_valid(form)
+        resposta = super().form_valid(form)
+        return redirecionar(resposta.url) if e_htmx(self.request) else resposta
 
     def get_context_data(self, **kwargs):
         contexto = super().get_context_data(**kwargs)
@@ -121,18 +140,24 @@ class Editar(CadastroMixin, DaPrefeituraMixin, UpdateView):
 
 
 class Alternar(PermissaoMixin, View):
-    """Inativa ou reativa (nada e apagado)."""
+    """Inativa ou reativa (nada e apagado). Com HTMX troca so a linha da tabela."""
     model = None
     base = ''
+    colunas = ()
 
     def post(self, request, pk):
         objeto = get_object_or_404(self.model, pk=pk, municipio_id=request.user.municipio_id)
         if objeto == request.user:
-            messages.error(request, 'Você não pode inativar o seu próprio usuário.')
+            texto, tipo = 'Você não pode inativar o seu próprio usuário.', 'error'
         else:
             objeto.ativo = not objeto.ativo
             objeto.save(update_fields=['ativo', 'atualizado_em'])  # todos os cadastros daqui tem atualizado_em
-            messages.success(request, 'Cadastro ativado.' if objeto.ativo else 'Cadastro inativado.')
+            texto, tipo = ('Cadastro ativado.' if objeto.ativo else 'Cadastro inativado.'), 'success'
+        if e_htmx(request):
+            linha = render(request, 'core/_linha.html',
+                           {'obj': objeto, 'valores': valores_da_linha(objeto, self.colunas), 'base': self.base})
+            return com_mensagem(linha, texto, tipo)
+        getattr(messages, tipo)(request, texto)
         return redirect(f'{self.base}_lista')
 
 
@@ -142,21 +167,20 @@ def rotas_cadastro(base, model, form, titulo, titulo_singular, colunas, permissa
         lista=Lista.as_view(model=model, base=base, titulo=titulo, colunas=colunas, permissao=permissao),
         novo=Novo.as_view(model=model, form_class=form, base=base, titulo=f'Novo: {titulo_singular}', permissao=permissao),
         editar=Editar.as_view(model=model, form_class=form, base=base, titulo=f'Editar: {titulo_singular}', permissao=permissao),
-        alternar=Alternar.as_view(model=model, base=base, permissao=permissao),
+        alternar=Alternar.as_view(model=model, base=base, colunas=colunas, permissao=permissao),
     )
 
 
 CADASTROS = {
     'secretarias': rotas_cadastro('secretarias', Secretaria, SecretariaForm, 'Secretarias', 'secretaria',
-                                  (('sigla', 'Sigla'), ('nome', 'Nome'), ('ativo', 'Ativa')), 'estrutura.gerir'),
+                                  (('sigla', 'Sigla'), ('nome', 'Nome'), ('ativo', 'Situação')), 'estrutura.gerir'),
     'unidades': rotas_cadastro('unidades', Unidade, UnidadeForm, 'Unidades', 'unidade',
-                               (('secretaria', 'Secretaria'), ('nome', 'Nome'), ('codigo_externo', 'Código Prime'), ('ativo', 'Ativa')),
-                               'estrutura.gerir'),
+                               (('secretaria', 'Secretaria'), ('nome', 'Nome'), ('ativo', 'Situação')), 'estrutura.gerir'),
     'centros_custo': rotas_cadastro('centros_custo', CentroCusto, CentroCustoForm, 'Centros de custo', 'centro de custo',
-                                    (('codigo', 'Código'), ('nome', 'Nome'), ('secretaria', 'Secretaria'), ('ativo', 'Ativo')),
+                                    (('codigo', 'Código'), ('nome', 'Nome'), ('secretaria', 'Secretaria'), ('ativo', 'Situação')),
                                     'estrutura.gerir'),
     'usuarios': rotas_cadastro('usuarios', Usuario, UsuarioEdicaoForm, 'Usuários', 'usuário',
-                               (('nome', 'Nome'), ('email', 'E-mail'), ('perfil', 'Perfil'), ('ativo', 'Ativo')),
+                               (('nome', 'Nome'), ('email', 'E-mail'), ('perfil', 'Perfil'), ('ativo', 'Situação')),
                                'usuarios.gerir'),
 }
 # usuario novo tem senha inicial
@@ -167,10 +191,13 @@ CADASTROS['usuarios']['novo'] = Novo.as_view(model=Usuario, form_class=UsuarioNo
 class RedefinirSenha(PermissaoMixin, View):
     permissao = 'usuarios.gerir'
 
+    def pagina(self, request, form, usuario):
+        modelo = 'core/_form.html' if e_htmx(request) else 'core/form.html'
+        return render(request, modelo, {'form': form, 'base': 'usuarios', 'titulo': f'Redefinir senha: {usuario.nome}'})
+
     def get(self, request, pk):
         usuario = get_object_or_404(Usuario, pk=pk, municipio_id=request.user.municipio_id)
-        return render(request, 'core/form.html', {'form': NovaSenhaForm(usuario=usuario), 'base': 'usuarios',
-                                                  'titulo': f'Redefinir senha: {usuario.nome}'})
+        return self.pagina(request, NovaSenhaForm(usuario=usuario), usuario)
 
     def post(self, request, pk):
         usuario = get_object_or_404(Usuario, pk=pk, municipio_id=request.user.municipio_id)
@@ -179,15 +206,15 @@ class RedefinirSenha(PermissaoMixin, View):
             usuario.set_password(form.cleaned_data['senha'])
             usuario.save(update_fields=['password', 'atualizado_em'])
             messages.success(request, 'Senha redefinida.')
-            return redirect('usuarios_lista')
-        return render(request, 'core/form.html', {'form': form, 'base': 'usuarios',
-                                                  'titulo': f'Redefinir senha: {usuario.nome}'})
+            return redirecionar(reverse('usuarios_lista')) if e_htmx(request) else redirect('usuarios_lista')
+        return self.pagina(request, form, usuario)
 
 
-class ListaAuditoria(PermissaoMixin, PaginacaoMixin, ListView):
+class ListaAuditoria(ParcialMixin, PermissaoMixin, PaginacaoMixin, ListView):
     permissao = 'auditoria.ver'
     model = Auditoria
     template_name = 'core/auditoria.html'
+    template_parcial = 'core/_auditoria_tabela.html'
     paginate_by = 50
 
     def get_queryset(self):

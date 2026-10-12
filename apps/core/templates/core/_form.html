@@ -1,0 +1,16 @@
+<form method="post" class="cartao max-w-xl space-y-5 p-6" hx-post="{{ request.path }}" hx-target="this" hx-swap="outerHTML">
+  {% csrf_token %}
+  {{ form.non_field_errors }}
+  {% for campo in form %}
+    <div>
+      <label for="{{ campo.id_for_label }}" class="mb-1 block font-medium">{{ campo.label }}</label>
+      {{ campo }}
+      {% if campo.help_text %}<p class="mt-1 text-sm text-slate-600">{{ campo.help_text }}</p>{% endif %}
+      {% if campo.errors %}<div class="mt-1 text-sm font-medium text-red-700">{{ campo.errors }}</div>{% endif %}
+    </div>
+  {% endfor %}
+  <div class="flex items-center gap-3 pt-2">
+    <button class="btn-primario">Salvar</button>
+    <a href="{% url base|add:'_lista' %}" class="btn-secundario">Cancelar</a>
+  </div>
+</form>

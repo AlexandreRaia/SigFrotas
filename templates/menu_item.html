@@ -1,0 +1,5 @@
+<a href="{% url url %}" title="{{ rotulo }}"
+   class="item-menu flex items-center gap-3 rounded-lg px-3 py-2.5 font-medium {% if chave in request.resolver_match.url_name %}bg-primaria-50 text-primaria-800{% else %}text-slate-600 hover:bg-slate-100 hover:text-slate-900{% endif %}">
+  <svg class="h-6 w-6 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="{{ icone }}"/></svg>
+  <span class="rotulo whitespace-nowrap">{{ rotulo }}</span>
+</a>

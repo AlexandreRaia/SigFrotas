@@ -49,6 +49,10 @@ class SecretariaForm(FormularioDaPrefeitura):
     class Meta:
         model = Secretaria
         fields = ['sigla', 'nome']
+        labels = {'sigla': 'Sigla', 'nome': 'Nome'}
+        help_texts = {'sigla': 'Abreviação usada no dia a dia, por exemplo SMA. Não pode repetir.',
+                      'nome': 'Nome por extenso da secretaria.'}
+        widgets = {'nome': forms.TextInput}
 
 
 class UnidadeForm(FormularioDaPrefeitura):
@@ -56,7 +60,11 @@ class UnidadeForm(FormularioDaPrefeitura):
 
     class Meta:
         model = Unidade
-        fields = ['secretaria', 'nome', 'codigo_externo']
+        fields = ['secretaria', 'nome']
+        labels = {'secretaria': 'Secretaria', 'nome': 'Nome'}
+        help_texts = {'secretaria': 'Secretaria à qual a unidade pertence.',
+                      'nome': 'Divisão dentro da secretaria, por exemplo Departamento de Transportes.'}
+        widgets = {'nome': forms.TextInput}
 
 
 class CentroCustoForm(FormularioDaPrefeitura):
@@ -64,7 +72,12 @@ class CentroCustoForm(FormularioDaPrefeitura):
 
     class Meta:
         model = CentroCusto
-        fields = ['secretaria', 'codigo', 'nome', 'codigo_externo']
+        fields = ['secretaria', 'codigo', 'nome']
+        labels = {'secretaria': 'Secretaria', 'codigo': 'Código', 'nome': 'Nome'}
+        help_texts = {'secretaria': 'Opcional. Deixe em branco se o centro de custo atende várias secretarias.',
+                      'codigo': 'Código do centro de custo como a prefeitura o conhece (contabilidade ou planilha). Não pode repetir.',
+                      'nome': 'Descrição, por exemplo Frota da Secretaria de Administração.'}
+        widgets = {'nome': forms.TextInput}
 
 
 class UsuarioEdicaoForm(FormularioDaPrefeitura):
@@ -73,10 +86,18 @@ class UsuarioEdicaoForm(FormularioDaPrefeitura):
     class Meta:
         model = Usuario
         fields = ['nome', 'email', 'perfil', 'secretaria', 'unidade', 'matricula']
+        labels = {'nome': 'Nome', 'email': 'E-mail', 'perfil': 'Perfil', 'secretaria': 'Secretaria',
+                  'unidade': 'Unidade', 'matricula': 'Matrícula'}
+        help_texts = {'email': 'Usado para entrar no sistema.',
+                      'perfil': 'Define o que a pessoa pode fazer.',
+                      'secretaria': 'Opcional. Limita o que a pessoa enxerga à sua secretaria.',
+                      'unidade': 'Opcional.'}
+        widgets = {'nome': forms.TextInput}
 
 
 class UsuarioNovoForm(UsuarioEdicaoForm):
-    senha = forms.CharField(label='Senha inicial', widget=forms.PasswordInput)
+    senha = forms.CharField(label='Senha inicial', widget=forms.PasswordInput,
+                            help_text='Mínimo de 8 caracteres. A pessoa pode ser orientada a trocá-la depois.')
 
     def clean_senha(self):
         senha = self.cleaned_data['senha']

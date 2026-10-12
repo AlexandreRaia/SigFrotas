@@ -1,34 +1,157 @@
-<!doctype html>
+{% load static %}<!doctype html>
 <html lang="pt-br">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{% block titulo %}SigFrotas{% endblock %}</title>
+  <script>
+    // Estado do menu lateral antes da pagina aparecer (evita "pulo"). No celular ele sempre comeca fechado.
+    (function () {
+      var v = null;
+      try { v = localStorage.getItem('menu'); } catch (e) {}
+      document.documentElement.dataset.menu = window.innerWidth < 768 ? 'fechado' : (v || 'aberto');
+    })();
+  </script>
+  <script src="{% static 'js/htmx.min.js' %}" defer></script>
   {# Tailwind pelo CDN so no desenvolvimento; compilar o CSS antes de ir para producao. #}
   <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = { theme: { extend: {
+      fontFamily: { sans: ['Inter', '"Segoe UI"', 'system-ui', 'Roboto', 'Arial', 'sans-serif'] },
+      // Cores da identidade em variaveis: depois cada prefeitura pode ter a sua (municipios.config).
+      colors: { primaria: { 50: 'var(--p-50)', 100: 'var(--p-100)', 700: 'var(--p-700)', 800: 'var(--p-800)', 900: 'var(--p-900)' } },
+    } } };
+  </script>
+  <style>
+    @font-face {
+      font-family: 'Inter'; font-weight: 100 900; font-style: normal; font-display: swap;
+      src: url("{% static 'fonts/inter-latin-var.woff2' %}") format('woff2');
+    }
+    :root { --p-50: #EFF6FF; --p-100: #DBEAFE; --p-700: #1D4ED8; --p-800: #1E40AF; --p-900: #1E3A8A; }
+    body { font-feature-settings: 'cv11', 'ss01'; }
+    td, th { font-variant-numeric: tabular-nums; }
+
+    /* Campos de formulario */
+    input[type=text], input[type=email], input[type=password], input[type=date], input[type=number], select, textarea {
+      width: 100%; background: #fff; border: 1px solid #94A3B8; border-radius: .5rem; padding: .55rem .75rem; color: #0F172A;
+    }
+    input:focus, select:focus, textarea:focus { outline: 2px solid var(--p-700); outline-offset: 1px; border-color: var(--p-700); }
+    .filtro input { width: auto; }
+
+    /* HTMX: area que esta sendo atualizada fica esmaecida */
+    #resultado { transition: opacity .15s ease; }
+    #resultado.htmx-request { opacity: .5; pointer-events: none; }
+
+    /* Menu lateral */
+    .menu { width: 16rem; transition: width .15s ease; }
+    html[data-menu=fechado] .menu { width: 4.25rem; }
+    html[data-menu=fechado] .menu .rotulo, html[data-menu=fechado] .menu .grupo { display: none; }
+    html[data-menu=fechado] .menu .item-menu { justify-content: center; padding-left: 0; padding-right: 0; }
+    .fundo-menu { display: none; }
+    @media (max-width: 767px) {
+      .menu { position: fixed; top: 3.5rem; bottom: 0; left: 0; z-index: 40; width: 16rem !important; transition: transform .15s ease; box-shadow: 0 10px 30px rgb(15 23 42 / .15); }
+      html[data-menu=fechado] .menu { transform: translateX(-100%); }
+      html[data-menu=fechado] .menu .rotulo, html[data-menu=fechado] .menu .grupo { display: inline; }
+      html[data-menu=fechado] .menu .item-menu { justify-content: flex-start; padding-left: .75rem; padding-right: .75rem; }
+      html[data-menu=aberto] .fundo-menu { display: block; position: fixed; inset: 3.5rem 0 0 0; z-index: 30; background: rgb(15 23 42 / .4); }
+    }
+  </style>
+  <style type="text/tailwindcss">
+    @layer components {
+      .btn { @apply inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2 font-medium transition-colors; }
+      .btn-primario { @apply btn bg-primaria-700 text-white hover:bg-primaria-800; }
+      .btn-secundario { @apply btn border border-slate-300 bg-white text-slate-700 hover:bg-slate-50; }
+      .link-acao { @apply font-medium text-primaria-700 hover:text-primaria-900 hover:underline; }
+      .link-perigo { @apply font-medium text-red-700 hover:text-red-800 hover:underline; }
+      .cartao { @apply rounded-xl border border-slate-200 bg-white shadow-sm; }
+      .selo { @apply inline-flex items-center rounded-full px-2.5 py-0.5 text-sm font-medium; }
+      .selo-ativo { @apply selo bg-green-50 text-green-700; }
+      .selo-inativo { @apply selo bg-slate-100 text-slate-600; }
+    }
+  </style>
 </head>
-<body class="bg-gray-50 text-gray-900">
+<body class="bg-slate-50 text-base leading-normal text-slate-900 antialiased" hx-headers='{"X-CSRFToken": "{{ csrf_token }}"}'>
   {% if user.is_authenticated %}
-  <header class="bg-slate-800 text-white">
-    <nav class="mx-auto flex max-w-6xl flex-wrap items-center gap-4 px-4 py-3 text-sm">
-      <a href="{% url 'inicio' %}" class="font-semibold">SigFrotas</a>
-      {% if 'estrutura.gerir' in user.perfil.permissoes %}
-        <a href="{% url 'secretarias_lista' %}" class="hover:underline">Secretarias</a>
-        <a href="{% url 'unidades_lista' %}" class="hover:underline">Unidades</a>
-        <a href="{% url 'centros_custo_lista' %}" class="hover:underline">Centros de custo</a>
-      {% endif %}
-      {% if 'usuarios.gerir' in user.perfil.permissoes %}<a href="{% url 'usuarios_lista' %}" class="hover:underline">Usuários</a>{% endif %}
-      {% if 'auditoria.ver' in user.perfil.permissoes %}<a href="{% url 'auditoria' %}" class="hover:underline">Auditoria</a>{% endif %}
-      <span class="ml-auto">{{ user.nome }} · {{ user.municipio.nome }}</span>
-      <form method="post" action="{% url 'sair' %}">{% csrf_token %}<button class="underline">Sair</button></form>
-    </nav>
+  <header class="sticky top-0 z-50 flex h-14 items-center gap-3 border-b border-slate-200 bg-white px-4 shadow-sm">
+    <button id="alternar-menu" type="button" class="rounded-lg p-2 text-slate-600 hover:bg-slate-100" title="Abrir ou recolher o menu" aria-label="Abrir ou recolher o menu">
+      <svg class="h-6 w-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
+    </button>
+    <a href="{% url 'inicio' %}" class="text-xl font-bold tracking-tight text-primaria-800">SigFrotas</a>
+    <span class="ml-auto hidden text-slate-600 sm:inline">{{ user.nome }} <span class="text-slate-400">·</span> {{ user.municipio.nome }}</span>
+    <form method="post" action="{% url 'sair' %}" class="ml-auto sm:ml-0">{% csrf_token %}
+      <button class="btn-secundario" title="Sair">
+        <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M15 17l5-5-5-5M20 12H9M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/></svg>
+        <span class="hidden sm:inline">Sair</span>
+      </button>
+    </form>
   </header>
   {% endif %}
-  <main class="mx-auto max-w-6xl px-4 py-6">
-    {% for mensagem in messages %}
-      <p class="mb-4 rounded px-3 py-2 text-sm {% if mensagem.tags == 'error' %}bg-red-100 text-red-800{% else %}bg-green-100 text-green-800{% endif %}">{{ mensagem }}</p>
-    {% endfor %}
-    {% block conteudo %}{% endblock %}
-  </main>
+  <div class="flex min-h-[calc(100vh-3.5rem)]">
+    {% if user.is_authenticated %}
+    <aside class="menu shrink-0 overflow-y-auto border-r border-slate-200 bg-white p-3">
+      <nav class="space-y-1">
+        {% include 'menu_item.html' with url='inicio' chave='inicio' rotulo='Início' icone='M3 11l9-8 9 8M5 10v10h5v-6h4v6h5V10' %}
+        {% if 'estrutura.gerir' in user.perfil.permissoes %}
+          <p class="grupo px-3 pb-1 pt-5 text-[13px] font-semibold uppercase tracking-wider text-slate-500">Estrutura</p>
+          {% include 'menu_item.html' with url='secretarias_lista' chave='secretarias' rotulo='Secretarias' icone='M4 21V4h10v17M14 9h6v12M2 21h20M7 8h4M7 12h4M7 16h4' %}
+          {% include 'menu_item.html' with url='unidades_lista' chave='unidades' rotulo='Unidades' icone='M9 3h6v5H9zM3 16h6v5H3zM15 16h6v5h-6zM12 8v4M6 16v-4h12v4' %}
+          {% include 'menu_item.html' with url='centros_custo_lista' chave='centros_custo' rotulo='Centros de custo' icone='M12 3a9 9 0 100 18 9 9 0 000-18zM12 7v10M15 9.5c0-1-1.3-1.5-3-1.5s-3 .8-3 2 1.3 1.7 3 2 3 .8 3 2-1.3 2-3 2-3-.5-3-1.5' %}
+        {% endif %}
+        {% if 'usuarios.gerir' in user.perfil.permissoes or 'auditoria.ver' in user.perfil.permissoes %}
+          <p class="grupo px-3 pb-1 pt-5 text-[13px] font-semibold uppercase tracking-wider text-slate-500">Administração</p>
+        {% endif %}
+        {% if 'usuarios.gerir' in user.perfil.permissoes %}
+          {% include 'menu_item.html' with url='usuarios_lista' chave='usuarios' rotulo='Usuários' icone='M16 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2M10 11a4 4 0 100-8 4 4 0 000 8zM20 21v-2a4 4 0 00-3-3.9M16 3.1a4 4 0 010 7.8' %}
+        {% endif %}
+        {% if 'auditoria.ver' in user.perfil.permissoes %}
+          {% include 'menu_item.html' with url='auditoria' chave='auditoria' rotulo='Auditoria' icone='M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6l8-3zM9 12l2 2 4-4' %}
+        {% endif %}
+      </nav>
+    </aside>
+    <div class="fundo-menu" id="fundo-menu"></div>
+    {% endif %}
+    <main class="min-w-0 flex-1 p-4 sm:p-8">
+      <div class="mx-auto max-w-6xl">
+        <div id="mensagens" aria-live="polite">
+        {% for mensagem in messages %}
+          <p class="mb-5 rounded-lg border px-4 py-3 {% if mensagem.tags == 'error' %}border-red-200 bg-red-50 text-red-700{% else %}border-green-200 bg-green-50 text-green-700{% endif %}">{{ mensagem }}</p>
+        {% endfor %}
+        </div>
+        {% block conteudo %}{% endblock %}
+      </div>
+    </main>
+  </div>
+  {% if user.is_authenticated %}
+  <script>
+    (function () {
+      var raiz = document.documentElement;
+      function definir(v) {
+        raiz.dataset.menu = v;
+        if (window.innerWidth >= 768) { try { localStorage.setItem('menu', v); } catch (e) {} }
+      }
+      document.getElementById('alternar-menu').addEventListener('click', function () {
+        definir(raiz.dataset.menu === 'aberto' ? 'fechado' : 'aberto');
+      });
+      document.getElementById('fundo-menu').addEventListener('click', function () { definir('fechado'); });
+
+      // Avisos das acoes feitas sem recarregar a pagina (HTMX).
+      function mostrar(texto, tipo) {
+        var p = document.createElement('p');
+        p.className = 'mb-5 rounded-lg border px-4 py-3 ' + (tipo === 'error'
+          ? 'border-red-200 bg-red-50 text-red-700' : 'border-green-200 bg-green-50 text-green-700');
+        p.textContent = texto;
+        document.getElementById('mensagens').prepend(p);
+        setTimeout(function () { p.remove(); }, 6000);
+      }
+      document.body.addEventListener('mensagem', function (e) { mostrar(e.detail.texto, e.detail.tipo); });
+      document.body.addEventListener('htmx:responseError', function (e) {
+        var s = e.detail.xhr.status;
+        mostrar(s === 403 ? 'Você não tem permissão para fazer isso.' : s === 404 ? 'Registro não encontrado.'
+          : 'Não foi possível concluir a operação. Tente de novo.', 'error');
+      });
+      document.body.addEventListener('htmx:sendError', function () { mostrar('Sem conexão com o servidor.', 'error'); });
+    })();
+  </script>
+  {% endif %}
 </body>
 </html>
