@@ -1,0 +1,4 @@
+# Scripts do servidor Linux precisam de fim de linha LF mesmo se o clone for feito no Windows.
+*.sh text eol=lf
+Dockerfile text eol=lf
+Caddyfile text eol=lf

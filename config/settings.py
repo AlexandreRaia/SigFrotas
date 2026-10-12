@@ -26,6 +26,7 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
+    'whitenoise.middleware.WhiteNoiseMiddleware',  # serve o CSS/JS em producao (em desenvolvimento o runserver serve)
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -86,6 +87,12 @@ MUNICIPIO_PADRAO_SLUG = os.environ.get('MUNICIPIO_PADRAO_SLUG', '')
 
 SESSION_COOKIE_SECURE = not DEBUG
 CSRF_COOKIE_SECURE = not DEBUG
+if not DEBUG:
+    # Atras do proxy HTTPS (Caddy): ele ja redireciona http -> https e envia este cabecalho.
+    SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+    SECURE_HSTS_SECONDS = 31536000
+    SECURE_CONTENT_TYPE_NOSNIFF = True
+    CSRF_TRUSTED_ORIGINS = [f'https://{h}' for h in ALLOWED_HOSTS if not h.startswith('.')]
 
 # --- Idioma e fuso ----------------------------------------------------------
 LANGUAGE_CODE = 'pt-br'
@@ -94,6 +101,10 @@ USE_I18N = True
 USE_TZ = True
 
 # --- Arquivos ---------------------------------------------------------------
+STORAGES = {
+    'default': {'BACKEND': 'django.core.files.storage.FileSystemStorage'},  # anexos; em producao pode virar S3
+    'staticfiles': {'BACKEND': 'whitenoise.storage.CompressedStaticFilesStorage'},
+}
 STATIC_URL = 'static/'
 STATIC_ROOT = BASE_DIR / 'staticfiles'
 STATICFILES_DIRS = [BASE_DIR / 'static']

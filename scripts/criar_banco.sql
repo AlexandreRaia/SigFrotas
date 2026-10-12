@@ -1,20 +1,24 @@
--- Cria as roles e o banco do SigFrotas (desenvolvimento local). Pode ser rodado de novo.
--- Variaveis (vindas de scripts/criar_banco.ps1): db, owner, owner_pwd, app, app_pwd
+-- Cria as roles e o banco do SigFrotas. Pode ser rodado de novo.
+-- Usado em desenvolvimento (scripts/criar_banco.ps1) e na implantacao (scripts/db-init.sh).
+-- Variaveis: db, owner, owner_pwd, app, app_pwd, dev (1 = desenvolvimento, 0 = producao)
 -- Rodar conectado ao banco "postgres" como superusuario.
 
--- Role dona das tabelas: usada so nas migracoes e nos testes.
--- CREATEDB: o Django cria o banco "test_..." nos testes (so no ambiente de desenvolvimento).
-SELECT format('CREATE ROLE %I LOGIN NOSUPERUSER NOCREATEROLE NOBYPASSRLS PASSWORD %L', :'owner', :'owner_pwd')
+-- Role dona das tabelas: usada so nas migracoes (e nos testes, em desenvolvimento).
+SELECT format('CREATE ROLE %I LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOBYPASSRLS PASSWORD %L', :'owner', :'owner_pwd')
 WHERE NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = :'owner') \gexec
-SELECT format('ALTER ROLE %I LOGIN NOSUPERUSER CREATEDB NOCREATEROLE NOBYPASSRLS PASSWORD %L', :'owner', :'owner_pwd') \gexec
+SELECT format('ALTER ROLE %I LOGIN NOSUPERUSER NOCREATEROLE NOBYPASSRLS PASSWORD %L', :'owner', :'owner_pwd') \gexec
 
 -- Role da aplicacao: sem BYPASSRLS e nao e dona de nada, para a RLS valer.
 SELECT format('CREATE ROLE %I LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOBYPASSRLS PASSWORD %L', :'app', :'app_pwd')
 WHERE NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = :'app') \gexec
 SELECT format('ALTER ROLE %I LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOBYPASSRLS PASSWORD %L', :'app', :'app_pwd') \gexec
 
--- So no desenvolvimento: os testes de RLS fazem SET ROLE para a role da aplicacao.
-SELECT format('GRANT %I TO %I', :'app', :'owner') \gexec
+-- So no desenvolvimento: o Django cria o banco "test_..." (CREATEDB) e os testes de RLS fazem
+-- SET ROLE para a role da aplicacao.
+\if :dev
+  SELECT format('ALTER ROLE %I CREATEDB', :'owner') \gexec
+  SELECT format('GRANT %I TO %I', :'app', :'owner') \gexec
+\endif
 
 -- Banco, com a role dona como proprietaria.
 SELECT format('CREATE DATABASE %I OWNER %I ENCODING ''UTF8'' TEMPLATE template0', :'db', :'owner')

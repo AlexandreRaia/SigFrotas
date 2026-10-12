@@ -1,0 +1,83 @@
+# Implantacao em VPS (PostgreSQL + site + HTTPS automatico). Passo a passo em docs/operacao.md.
+# Em desenvolvimento NAO se usa isto: roda-se com o venv e o PostgreSQL local (ver README).
+services:
+  db:
+    image: postgres:16
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${PG_ADMIN_USER:-postgres}
+      POSTGRES_PASSWORD: ${PG_ADMIN_PASSWORD}
+      DB_NAME: ${DB_NAME:-sigfrotas}
+      DB_OWNER_USER: ${DB_OWNER_USER}
+      DB_OWNER_PASSWORD: ${DB_OWNER_PASSWORD}
+      DB_APP_USER: ${DB_APP_USER}
+      DB_APP_PASSWORD: ${DB_APP_PASSWORD}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./scripts:/scripts:ro
+      - ./scripts/db-init.sh:/docker-entrypoint-initdb.d/10-roles.sh:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${PG_ADMIN_USER:-postgres}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  web:
+    build: .
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    env_file: .env
+    environment:
+      DJANGO_DEBUG: "False"
+      DJANGO_ALLOWED_HOSTS: ${DOMINIO}
+      DB_HOST: db
+    volumes:
+      - media:/app/media
+    expose:
+      - "8000"
+
+  caddy:
+    image: caddy:2
+    restart: unless-stopped
+    depends_on:
+      - web
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      DOMINIO: ${DOMINIO}
+    volumes:
+      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+
+  # Nao sobe com "up". Uso: docker compose run --rm backup   (ver docs/operacao.md)
+  backup:
+    build:
+      context: .
+      dockerfile: deploy/backup.Dockerfile
+    profiles: ["ferramentas"]
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      PGHOST: db
+      PGUSER: ${PG_ADMIN_USER:-postgres}
+      PGPASSWORD: ${PG_ADMIN_PASSWORD}
+      DB_NAME: ${DB_NAME:-sigfrotas}
+      DB_OWNER_USER: ${DB_OWNER_USER}
+      DB_APP_USER: ${DB_APP_USER}
+      BACKUP_PASSPHRASE: ${BACKUP_PASSPHRASE:-}
+      RETENCAO_DIAS: ${RETENCAO_DIAS:-14}
+    volumes:
+      - ./backups:/backups
+      - ./scripts:/scripts:ro
+      - media:/media   # o backup so le; a restauracao real (restaurar.sh) grava aqui
+    entrypoint: ["sh"]
+    command: ["/scripts/backup.sh"]
+
+volumes:
+  pgdata:
+  media:
+  caddy_data:

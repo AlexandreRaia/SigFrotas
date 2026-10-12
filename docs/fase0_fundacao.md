@@ -1,6 +1,6 @@
 # Especificação — Fase 0: Fundação
 
-Status: **aguardando aprovação do Alexandre**
+Status: **concluída em 12/10/2026**, pendente da validação do Alexandre e da primeira implantação na VPS (ver "Resultado" no fim).
 
 ## 1. Objetivo
 
@@ -78,7 +78,33 @@ Interface em templates Django, HTMX e Tailwind, de forma simples.
 5. Auditoria de consultas a dados pessoais fica para a Fase 1.
 6. Desenvolvimento no PostgreSQL 16 local, com duas roles (dona das tabelas e da aplicação, esta sem `BYPASSRLS`).
 
-## 9. Perguntas originais
+## 9. Resultado (12/10/2026)
+
+| Item | Situação |
+|---|---|
+| Projeto Django, prefeitura, usuários e perfis | Pronto |
+| Secretarias, unidades, centros de custo (cadastros) | Pronto |
+| RLS em todas as tabelas de prefeitura | Pronto, com testes |
+| Auditoria (só inserção para a aplicação) | Pronto, com testes |
+| Anexos (upload com hash, download restrito à prefeitura) | Pronto, com testes |
+| Telas com HTMX, menu lateral, CSS compilado (Tailwind CLI) | Pronto |
+| Backup diário criptografado | Pronto e **testado** no PostgreSQL local |
+| Teste de restauração e restauração real | Prontos e **testados** no PostgreSQL local |
+| `Dockerfile`, `docker-compose.yml`, HTTPS (Caddy) | Escritos, **ainda não executados** (sem Docker na máquina de desenvolvimento) |
+
+**Critério de pronto:** os testes provam que a prefeitura A não vê nem grava dados da B (`apps/core/tests/test_rls.py`, `test_telas.py`, `test_servicos.py`, `test_anexos.py`).
+
+**Desvios em relação à spec:**
+- Não há `docker-compose` de desenvolvimento: o desenvolvimento usa o PostgreSQL local (decisão do Alexandre). O compose é só de implantação.
+- Celery/Redis e PWA ficam para as Fases 2 e 3, como previsto.
+
+**Pendências para dar a fase por encerrada em produção:**
+1. Primeira implantação na VPS seguindo `docs/operacao.md` (valida Docker, HTTPS e migrações no servidor).
+2. Primeiro teste de restauração no servidor, com o backup real.
+3. Agendar a cópia dos backups para fora do servidor.
+4. Parecer do TI sobre a revisão de segurança antes de ir à produção (risco já listado no PROJETO.md).
+
+## 10. Perguntas originais
 
 1. **Login:** e-mail e senha bastam na Fase 0? Motorista usará prontuário (Fase 3), com campo separado depois.
 2. **Perfis fixos ou editáveis?** Sugestão: os 8 perfis são fixos no código e criados com a prefeitura; só as permissões são ajustáveis, depois.

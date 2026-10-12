@@ -1,0 +1,9 @@
+# HTTPS automatico (certificado Let's Encrypt) para o dominio definido em DOMINIO no .env.
+# O DNS do dominio precisa apontar para o IP da VPS e as portas 80 e 443 estar abertas.
+{$DOMINIO} {
+	encode zstd gzip
+	request_body {
+		max_size 25MB
+	}
+	reverse_proxy web:8000
+}

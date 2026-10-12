@@ -14,9 +14,15 @@ media/
 staticfiles/
 *.sqlite3
 
-# Dumps e dados reais
+# Gerado / baixado (CSS compilado, Tailwind CLI)
+static/css/app.css
+tools/
+
+# Dumps, backups e dados reais
 *.dump
+*.dump.enc
 *.bak
+backups/
 
 # IDE / sistema
 .vscode/

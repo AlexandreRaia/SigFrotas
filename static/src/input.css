@@ -1,0 +1,52 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@font-face {
+  font-family: 'Inter'; font-weight: 100 900; font-style: normal; font-display: swap;
+  src: url("../fonts/inter-latin-var.woff2") format('woff2');
+}
+
+:root { --p-50: #EFF6FF; --p-100: #DBEAFE; --p-700: #1D4ED8; --p-800: #1E40AF; --p-900: #1E3A8A; }
+
+@layer base {
+  body { font-feature-settings: 'cv11', 'ss01'; }
+  td, th { font-variant-numeric: tabular-nums; }
+
+  /* Campos de formulario */
+  input[type=text], input[type=email], input[type=password], input[type=date], input[type=number], select, textarea {
+    width: 100%; background: #fff; border: 1px solid #94A3B8; border-radius: .5rem; padding: .55rem .75rem; color: #0F172A;
+  }
+  input:focus, select:focus, textarea:focus { outline: 2px solid var(--p-700); outline-offset: 1px; border-color: var(--p-700); }
+  .filtro input { width: auto; }
+}
+
+@layer components {
+  .btn { @apply inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2 font-medium transition-colors; }
+  .btn-primario { @apply btn bg-primaria-700 text-white hover:bg-primaria-800; }
+  .btn-secundario { @apply btn border border-slate-300 bg-white text-slate-700 hover:bg-slate-50; }
+  .link-acao { @apply font-medium text-primaria-700 hover:text-primaria-900 hover:underline; }
+  .link-perigo { @apply font-medium text-red-700 hover:text-red-800 hover:underline; }
+  .cartao { @apply rounded-xl border border-slate-200 bg-white shadow-sm; }
+  .selo { @apply inline-flex items-center rounded-full px-2.5 py-0.5 text-sm font-medium; }
+  .selo-ativo { @apply selo bg-green-50 text-green-700; }
+  .selo-inativo { @apply selo bg-slate-100 text-slate-600; }
+}
+
+/* HTMX: area que esta sendo atualizada fica esmaecida */
+#resultado { transition: opacity .15s ease; }
+#resultado.htmx-request { opacity: .5; pointer-events: none; }
+
+/* Menu lateral (estado em html[data-menu]) */
+.menu { width: 16rem; transition: width .15s ease; }
+html[data-menu=fechado] .menu { width: 4.25rem; }
+html[data-menu=fechado] .menu .rotulo, html[data-menu=fechado] .menu .grupo { display: none; }
+html[data-menu=fechado] .menu .item-menu { justify-content: center; padding-left: 0; padding-right: 0; }
+.fundo-menu { display: none; }
+@media (max-width: 767px) {
+  .menu { position: fixed; top: 3.5rem; bottom: 0; left: 0; z-index: 40; width: 16rem !important; transition: transform .15s ease; box-shadow: 0 10px 30px rgb(15 23 42 / .15); }
+  html[data-menu=fechado] .menu { transform: translateX(-100%); }
+  html[data-menu=fechado] .menu .rotulo, html[data-menu=fechado] .menu .grupo { display: inline; }
+  html[data-menu=fechado] .menu .item-menu { justify-content: flex-start; padding-left: .75rem; padding-right: .75rem; }
+  html[data-menu=aberto] .fundo-menu { display: block; position: fixed; inset: 3.5rem 0 0 0; z-index: 30; background: rgb(15 23 42 / .4); }
+}
