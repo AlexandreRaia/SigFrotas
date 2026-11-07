@@ -27,10 +27,9 @@
     <h2 class="mb-3 text-[16px] font-semibold">Lotação atual</h2>
     <dl class="grid grid-cols-[10rem_1fr] gap-x-4 gap-y-1">
       <dt class="text-slate-600">Secretaria</dt><dd>{{ veiculo.secretaria|default:"-" }}</dd>
-      <dt class="text-slate-600">Unidade</dt><dd>{{ veiculo.unidade|default:"-" }}</dd>
+      <dt class="text-slate-600">Setor/Departamento</dt><dd>{{ veiculo.unidade|default:"-" }}</dd>
       <dt class="text-slate-600">Centro de custo</dt><dd>{{ veiculo.centro_custo|default:"-" }}</dd>
-      <dt class="text-slate-600">Km atual</dt><dd class="font-semibold">{{ veiculo.odometro_atual }}</dd>
-      {% if veiculo.horimetro_atual is not None %}<dt class="text-slate-600">Horímetro</dt><dd class="font-semibold">{{ veiculo.horimetro_atual }}</dd>{% endif %}
+      <dt class="text-slate-600">Km/Horímetro atual</dt><dd class="font-semibold">{{ veiculo.odometro_atual }}</dd>
     </dl>
   </section>
   <section class="cartao p-5">
@@ -76,12 +75,12 @@
     {% endif %}
   </section>
   <section class="cartao p-5">
-    <h2 class="mb-3 text-[16px] font-semibold">Leituras de km{% if veiculo.usa_horimetro %} e horímetro{% endif %}</h2>
+    <h2 class="mb-3 text-[16px] font-semibold">Leituras de km/horímetro</h2>
     <table class="tabela mb-3">
-      <thead class="text-slate-600"><tr><th class="py-1 font-semibold">Quando</th><th class="py-1 font-semibold">Km</th>{% if veiculo.usa_horimetro %}<th class="py-1 font-semibold">Horímetro</th>{% endif %}<th class="py-1 font-semibold">Origem</th></tr></thead>
+      <thead class="text-slate-600"><tr><th class="py-1 font-semibold">Quando</th><th class="py-1 font-semibold">Km/Horímetro</th><th class="py-1 font-semibold">Origem</th></tr></thead>
       <tbody class="divide-y divide-slate-100">
-        {% for l in leituras %}<tr><td class="whitespace-nowrap py-1">{{ l.lido_em|date:"d/m/Y H:i" }}</td><td class="py-1">{{ l.odometro|default_if_none:"-" }}</td>{% if veiculo.usa_horimetro %}<td class="py-1">{{ l.horimetro|default_if_none:"-" }}</td>{% endif %}<td class="py-1">{{ l.get_origem_display }}</td></tr>
-        {% empty %}<tr><td colspan="4" class="py-2 text-slate-600">Nenhuma leitura.</td></tr>{% endfor %}
+        {% for l in leituras %}<tr><td class="whitespace-nowrap py-1">{{ l.lido_em|date:"d/m/Y H:i" }}</td><td class="py-1">{{ l.odometro|default_if_none:"-" }}</td><td class="py-1">{{ l.get_origem_display }}</td></tr>
+        {% empty %}<tr><td colspan="3" class="py-2 text-slate-600">Nenhuma leitura.</td></tr>{% endfor %}
       </tbody>
     </table>
     {% if pode_gerir %}
@@ -105,7 +104,7 @@
   <section class="cartao p-5">
     <h2 class="mb-3 text-[16px] font-semibold">Anexos</h2>
     <ul class="mb-3 divide-y divide-slate-100">
-      {% for a in anexos %}<li class="flex items-center justify-between py-2"><a class="link-acao" href="{% url 'anexo_baixar' a.pk %}">{{ a.nome_arquivo }}</a><span class="text-slate-600">{{ a.categoria }} · {{ a.criado_em|date:"d/m/Y" }}</span></li>
+      {% for a in anexos %}<li class="flex items-center justify-between py-2"><a class="link-acao" href="{% url 'anexo_baixar' a.pk %}">{{ a.nome_arquivo }}</a><span class="text-slate-600">{{ a.rotulo }} · {{ a.criado_em|date:"d/m/Y" }}</span></li>
       {% empty %}<li class="py-2 text-slate-600">Nenhum arquivo (CRLV, fotos...).</li>{% endfor %}
     </ul>
     {% if pode_gerir %}

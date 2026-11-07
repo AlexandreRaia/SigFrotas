@@ -28,6 +28,12 @@ def data_br(valor):
 
 
 @register.filter
+def item(dicionario, chave):
+    """{{ enviados|item:campo.name }}: valor do dicionario (vazio se nao tiver)."""
+    return (dicionario or {}).get(chave, ())
+
+
+@register.filter
 def pode(usuario, permissao):
     """{% if user|pode:'frota.ver' %}"""
     return usuario.is_authenticated and usuario.tem_permissao(permissao)

@@ -87,6 +87,24 @@ html[data-tema=escuro] .text-amber-700, html[data-tema=escuro] .text-amber-800 {
 /* Botao de tema no cabecalho: lua no tema claro (vai para o escuro), sol no escuro */
 html:not([data-tema=escuro]) .icone-sol, html[data-tema=escuro] .icone-lua { display: none; }
 
+/* ---------- Assistente em etapas (cadastro de veiculo) ---------- */
+.assistente [hidden] { display: none !important; }
+.assistente-abas { display: flex; gap: 20px; overflow-x: auto; padding: 0 16px; border-top: 1px solid var(--borda); border-bottom: 1px solid var(--borda);
+  scrollbar-width: none; }
+.assistente-abas::-webkit-scrollbar { display: none; }
+.assistente-aba { display: flex; align-items: center; gap: 8px; flex-shrink: 0; padding: 10px 0; font-size: 13px; color: var(--texto-fraco);
+  background: none; border: 0; border-bottom: 2px solid transparent; margin-bottom: -1px; cursor: pointer; }
+.assistente-aba .num { display: inline-flex; align-items: center; justify-content: center; width: 20px; height: 20px; border-radius: 999px;
+  background: var(--passar-mouse); color: var(--texto-fraco); font-size: 12px; font-weight: 500; }
+.assistente-aba[aria-selected=true] { color: var(--p-800); font-weight: 500; }
+.assistente-aba[aria-selected=true] .num { background: #2563eb; color: #fff; }
+.assistente-aba.com-erro .num { background: var(--erro-fundo); color: var(--erro-texto); }
+.assistente .campo-rotulo { display: block; margin-bottom: 4px; font-size: 12px; font-weight: 500; color: var(--texto); }
+.assistente .campo-ajuda { margin-top: 4px; font-size: 12px; color: var(--texto-vazio); }
+.assistente .campo input:not([type=hidden]), .assistente .campo select { height: 32px; padding: 0 10px; font-size: 13px; }
+.assistente .campo textarea { padding: 6px 10px; font-size: 13px; }
+.assistente .campo input[type=file] { height: auto; padding: 0; border: 0; background: transparent; box-shadow: none; }
+
 /* ---------- Tabelas das listas (servidor): mesmas medidas da tabela de veiculos (Tabulator) ---------- */
 .tabela { width: 100%; border-collapse: separate; border-spacing: 0; font-size: 14px; color: var(--texto); text-align: left; }
 .tabela th { position: relative; padding: 12px 14px; background: var(--cabecalho); border-bottom: 1px solid var(--borda); color: var(--texto-fraco);
@@ -112,7 +130,7 @@ a.pagina:hover { background: var(--passar-mouse); }
 #resultado.htmx-request { opacity: .5; pointer-events: none; }
 
 /* ---------- Menu lateral: 230px aberto, 64px so com icones (estado em html[data-menu]) ---------- */
-.menu { width: 230px; transition: width .2s ease; scrollbar-width: none; }  /* sem barra de rolagem visivel; rola com o mouse/dedo */
+.menu { width: 230px; transition: width .2s ease; scrollbar-width: none; -ms-overflow-style: none; }  /* sem barra de rolagem visivel; rola com o mouse/dedo */
 .menu::-webkit-scrollbar { display: none; }
 html[data-menu=fechado] .menu { width: 64px; }
 html[data-menu=fechado] .menu .rotulo { display: none; }

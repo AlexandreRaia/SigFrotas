@@ -9,7 +9,7 @@ from django.db.models.functions import Lower
 from django.utils import timezone
 
 from apps.core.models import CentroCusto, ModeloDoMunicipio, Secretaria, Unidade
-from apps.financeiro.models import Contrato
+from apps.financeiro.models import Contrato, Fornecedor
 
 CNH_CATEGORIAS = [(c, c) for c in ('A', 'B', 'C', 'D', 'E', 'AB', 'AC', 'AD', 'AE')]
 
@@ -55,10 +55,9 @@ class Combustivel(models.Model):
 # --- Cadastros da prefeitura -------------------------------------------------------------------------------------
 
 class CategoriaVeiculo(ModeloDoMunicipio):
-    """Automovel, caminhao, onibus, moto, maquina... Define a CNH minima e se o veiculo usa horimetro."""
+    """Automovel, caminhao, onibus, moto, maquina... Define a CNH minima."""
     nome = models.CharField(max_length=60)
     cnh_minima = models.CharField('CNH mínima', max_length=5, blank=True, choices=CNH_CATEGORIAS)
-    usa_horimetro = models.BooleanField('Usa horímetro (máquinas)', default=False)
     ativo = models.BooleanField(default=True)
 
     class Meta:
@@ -85,6 +84,7 @@ class Veiculo(ModeloDoMunicipio):
                  ('RESERVA', 'Reserva'), ('INATIVO', 'Inativo'), ('BAIXADO', 'Baixado')]
     TIPOS_FROTA = [('PROPRIO', 'Próprio'), ('LOCADO', 'Locado'), ('ESTADUAL', 'Estadual'), ('DOACAO', 'Doação'),
                    ('CEDIDO', 'Cedido')]
+    TRACOES = [('4X2', '4x2'), ('4X4', '4x4')]
     TRANSMISSOES = [('MANUAL', 'Manual'), ('AUTOMATICA', 'Automática'), ('AUTOMATIZADA', 'Automatizada'), ('CVT', 'CVT')]
 
     secretaria = models.ForeignKey(Secretaria, null=True, blank=True, on_delete=models.PROTECT)
@@ -106,18 +106,32 @@ class Veiculo(ModeloDoMunicipio):
     capacidade_tanque = models.DecimalField('Capacidade do tanque (litros)', max_digits=6, decimal_places=2, null=True, blank=True)
     consumo_referencia = models.DecimalField('Consumo de referência (km/l)', max_digits=5, decimal_places=2, null=True, blank=True)
     capacidade_passageiros = models.SmallIntegerField('Passageiros', null=True, blank=True)
+    capacidade_carga_kg = models.IntegerField('Capacidade de carga (kg)', null=True, blank=True, validators=[MinValueValidator(0)])
+    tracao = models.CharField('Tração', max_length=3, blank=True, choices=TRACOES)
+    medida_pneu = models.CharField('Medida do pneu', max_length=20, blank=True)
+    intervalo_revisao_km = models.IntegerField('Intervalo de revisão (km)', null=True, blank=True, validators=[MinValueValidator(1)])
+    intervalo_revisao_meses = models.SmallIntegerField('Intervalo de revisão (meses)', null=True, blank=True,
+                                                       validators=[MinValueValidator(1)])
+    rastreador = models.BooleanField('Possui rastreador', default=False)
+    tag = models.BooleanField('Possui tag', default=False)
+    autonomia_km = models.IntegerField('Autonomia (km)', null=True, blank=True, validators=[MinValueValidator(1)])  # so eletricos
+    capacidade_bateria_kwh = models.DecimalField('Capacidade da bateria (kWh)', max_digits=6, decimal_places=1, null=True,
+                                                 blank=True, validators=[MinValueValidator(Decimal('0.1'))])  # so eletricos
     odometro_atual = models.IntegerField('Km atual', default=0, validators=[MinValueValidator(0)])  # so muda por leitura
-    horimetro_atual = models.DecimalField('Horímetro atual', max_digits=10, decimal_places=1, null=True, blank=True)
     km_entrada = models.IntegerField('Km ao entrar na frota', null=True, blank=True)
     estado_conservacao = models.CharField('Estado de conservação', max_length=10, blank=True, choices=ESTADOS)
     situacao = models.CharField('Situação', max_length=15, default='DISPONIVEL', choices=SITUACOES)
     tipo_frota = models.CharField('Tipo de frota', max_length=10, default='PROPRIO', choices=TIPOS_FROTA)
-    proprietario = models.TextField('Proprietário (locadora ou órgão)', blank=True)
+    proprietario = models.ForeignKey(Fornecedor, null=True, blank=True, on_delete=models.PROTECT,
+                                     verbose_name='Proprietário (locadora ou órgão)')
     contrato_locacao = models.ForeignKey(Contrato, null=True, blank=True, on_delete=models.PROTECT, verbose_name='Contrato de locação')
     valor_fipe = models.DecimalField('Valor FIPE', max_digits=14, decimal_places=2, null=True, blank=True)
     valor_aquisicao = models.DecimalField('Valor de aquisição', max_digits=14, decimal_places=2, null=True, blank=True)
     valor_aluguel_mensal = models.DecimalField('Aluguel mensal', max_digits=14, decimal_places=2, null=True, blank=True)
     data_aquisicao = models.DateField('Data de aquisição', null=True, blank=True)
+    vencimento_ipva = models.DateField('Vencimento do IPVA', null=True, blank=True)
+    vencimento_licenciamento = models.DateField('Vencimento do licenciamento', null=True, blank=True)
+    vencimento_seguro = models.DateField('Vencimento do seguro', null=True, blank=True)  # so quando houver seguro
     data_baixa = models.DateField('Data da baixa', null=True, blank=True)
     motivo_baixa = models.TextField('Motivo da baixa', blank=True)
     criado_em = models.DateTimeField(auto_now_add=True)
@@ -139,7 +153,7 @@ class Veiculo(ModeloDoMunicipio):
         if self.renavam and not re.match(r'^\d{9,11}$', self.renavam):
             erros['renavam'] = 'O RENAVAM tem de 9 a 11 números.'
         if self.unidade_id and self.secretaria_id and self.unidade.secretaria_id != self.secretaria_id:
-            erros['unidade'] = 'A unidade não pertence à secretaria escolhida.'
+            erros['unidade'] = 'O setor/departamento não pertence à secretaria escolhida.'
         if self.situacao == 'BAIXADO':
             if not self.data_baixa:
                 erros['data_baixa'] = 'Informe a data da baixa.'
@@ -151,10 +165,6 @@ class Veiculo(ModeloDoMunicipio):
     def save(self, *args, **kwargs):
         self.placa = normalizar_placa(self.placa)
         super().save(*args, **kwargs)
-
-    @property
-    def usa_horimetro(self):
-        return bool(self.categoria_id and self.categoria.usa_horimetro)
 
     def __str__(self):
         return f'{self.placa}' + (f' ({self.prefixo})' if self.prefixo else '')
@@ -191,7 +201,6 @@ class LeituraVeiculo(ModeloDoMunicipio):
 
     veiculo = models.ForeignKey(Veiculo, on_delete=models.CASCADE, related_name='leituras')
     odometro = models.IntegerField(null=True, blank=True)
-    horimetro = models.DecimalField(max_digits=10, decimal_places=1, null=True, blank=True)
     lido_em = models.DateTimeField(default=timezone.now)
     origem = models.CharField(max_length=20, choices=ORIGENS)
     origem_id = models.BigIntegerField(null=True, blank=True)

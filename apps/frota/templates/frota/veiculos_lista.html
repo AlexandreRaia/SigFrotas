@@ -8,9 +8,15 @@
 <div class="mb-[14px] flex flex-wrap items-center gap-2 rounded-xl border border-gray-200 bg-white px-[10px] py-2 sm:flex-nowrap">
   <div class="relative min-w-0 basis-full sm:flex-1 sm:basis-auto">
     <i class="ri-search-line pointer-events-none absolute left-[10px] top-1/2 -translate-y-1/2 text-[16px] text-gray-400" aria-hidden="true"></i>
-    <input id="busca" type="text" placeholder="Buscar por placa, prefixo ou modelo" autocomplete="off" aria-label="Buscar veículo"
+    <input id="busca" type="text" placeholder="Buscar por placa, prefixo, marca ou modelo" autocomplete="off" aria-label="Buscar veículo"
            class="h-[34px] w-full py-0 pl-8 pr-[10px]">
   </div>
+  <select id="filtro-marca" class="h-[34px] min-w-0 flex-1 !w-auto px-[10px] py-0 sm:flex-none" aria-label="Marca">
+    <option value="">Marca</option>
+  </select>
+  <select id="filtro-modelo" class="h-[34px] min-w-0 flex-1 !w-auto px-[10px] py-0 sm:flex-none" aria-label="Modelo">
+    <option value="">Modelo</option>
+  </select>
   <select id="filtro-situacao" class="h-[34px] min-w-0 flex-1 !w-auto px-[10px] py-0 sm:flex-none" aria-label="Situação">
     <option value="">Situação</option>
     <option value="operacao">Em operação</option>
@@ -42,6 +48,9 @@
   var campoBusca = document.getElementById('busca');
   var filtroSituacao = document.getElementById('filtro-situacao');
   var filtroSecretaria = document.getElementById('filtro-secretaria');
+  var filtroMarca = document.getElementById('filtro-marca');
+  var filtroModelo = document.getElementById('filtro-modelo');
+  var dadosDaTabela = [];
 
   function esc(texto) { return String(texto == null ? '' : texto).replace(/[&<>"']/g, function (c) { return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
 
@@ -70,14 +79,15 @@
     langs: { 'pt-br': { pagination: { first: '«', first_title: 'Primeira página', last: '»', last_title: 'Última página',
                                       prev: '‹', prev_title: 'Página anterior', next: '›', next_title: 'Próxima página' } } },
     columns: [
-      { title: 'Placa', field: 'placa', width: 120 },
+      { title: 'Placa', field: 'placa', width: 105 },
       { title: 'Prefixo', field: 'prefixo', width: 100 },
-      { title: 'Modelo', field: 'modelo', minWidth: 180 },
-      { title: 'Categoria', field: 'categoria', minWidth: 150 },
+      { title: 'Marca', field: 'marca', minWidth: 110 },
+      { title: 'Modelo', field: 'modelo', minWidth: 140 },
+      { title: 'Categoria', field: 'categoria', minWidth: 120 },
       { title: 'Secretaria', field: 'secretaria', width: 120 },
-      { title: 'Km', field: 'km', hozAlign: 'right', width: 110,
+      { title: 'Km', field: 'km', hozAlign: 'right', width: 95,
         formatter: function (c) { return Number(c.getValue()).toLocaleString('pt-BR'); } },
-      { title: 'Situação', field: 'situacao_rotulo', width: 170,
+      { title: 'Situação', field: 'situacao_rotulo', width: 150,
         formatter: function (c) { var v = c.getData(); return '<span class="pilula pilula-' + v.situacao + '">' + esc(v.situacao_rotulo) + '</span>'; } },
       { title: 'Ações', field: 'id', width: 120, headerSort: false, formatter: acoes },
     ],
@@ -85,22 +95,38 @@
 
   function aplicarFiltros() {
     var q = campoBusca.value.trim().toLowerCase(), sit = filtroSituacao.value, sec = filtroSecretaria.value;
+    var mar = filtroMarca.value, mod = filtroModelo.value;
     tabela.setFilter(function (v) {
       if (sit && v.situacao !== sit) return false;
       if (sec && v.secretaria !== sec) return false;
-      return !q || (v.placa + ' ' + v.prefixo + ' ' + v.modelo).toLowerCase().indexOf(q) !== -1;
+      if (mar && v.marca !== mar) return false;
+      if (mod && v.modelo !== mod) return false;
+      return !q || (v.placa + ' ' + v.prefixo + ' ' + v.marca + ' ' + v.modelo).toLowerCase().indexOf(q) !== -1;
     });
   }
-  tabela.on('dataLoaded', function (dados) {   // a lista de secretarias vem dos proprios veiculos
-    var atual = filtroSecretaria.value;
-    var siglas = Array.from(new Set(dados.map(function (v) { return v.secretaria; }).filter(Boolean))).sort();
-    filtroSecretaria.innerHTML = '<option value="">Secretaria</option>' + siglas.map(function (s) { return '<option>' + s + '</option>'; }).join('');
-    filtroSecretaria.value = siglas.indexOf(atual) !== -1 ? atual : '';
+  // Monta uma lista de escolha com os valores que existem nos veiculos (mantem a escolha atual se ainda existir)
+  function preencher(select, rotulo, valores) {
+    var atual = select.value;
+    var unicos = Array.from(new Set(valores.filter(Boolean))).sort(function (a, b) { return a.localeCompare(b, 'pt-BR'); });
+    select.innerHTML = '<option value="">' + rotulo + '</option>' + unicos.map(function (s) { return '<option>' + esc(s) + '</option>'; }).join('');
+    select.value = unicos.indexOf(atual) !== -1 ? atual : '';
+  }
+  function preencherModelos() {   // so os modelos da marca escolhida (ou todos, sem marca)
+    var marca = filtroMarca.value;
+    preencher(filtroModelo, 'Modelo', dadosDaTabela.filter(function (v) { return !marca || v.marca === marca; }).map(function (v) { return v.modelo; }));
+  }
+  tabela.on('dataLoaded', function (dados) {   // as listas vem dos proprios veiculos
+    dadosDaTabela = dados;
+    preencher(filtroSecretaria, 'Secretaria', dados.map(function (v) { return v.secretaria; }));
+    preencher(filtroMarca, 'Marca', dados.map(function (v) { return v.marca; }));
+    preencherModelos();
   });
   tabela.on('tableBuilt', function () {
     campoBusca.addEventListener('input', aplicarFiltros);
     filtroSituacao.addEventListener('change', aplicarFiltros);
     filtroSecretaria.addEventListener('change', aplicarFiltros);
+    filtroMarca.addEventListener('change', function () { preencherModelos(); aplicarFiltros(); });
+    filtroModelo.addEventListener('change', aplicarFiltros);
   });
 
   // Inativar / reativar (o historico do veiculo e preservado)

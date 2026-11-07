@@ -225,7 +225,6 @@ class CadastroMixin(ParcialMixin, PermissaoMixin):
     base = ''
     titulo = ''
     catalogo_global = False   # marcas e modelos: sem prefeitura (o formulario nao recebe municipio_id)
-
     def get_form_kwargs(self):
         kwargs = super().get_form_kwargs()
         if not self.catalogo_global:

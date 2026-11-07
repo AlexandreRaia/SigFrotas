@@ -1,0 +1,144 @@
+{% extends 'base.html' %}
+{% load sigfrotas %}
+{% block titulo %}{{ titulo }} · SigFrotas{% endblock %}
+{% block conteudo %}
+{% with etapas=form.etapas_montadas enviados=form.arquivos_atuais %}
+{# Assistente em etapas: tudo (inclusive os arquivos) e enviado de uma vez no fim; o servidor valida de novo e reabre a etapa com erro #}
+<form method="post" enctype="multipart/form-data" id="assistente" novalidate class="assistente cartao mx-auto max-w-[900px] overflow-hidden">
+  {% csrf_token %}
+  <header class="flex h-[52px] items-center justify-between gap-3 px-4">
+    <h1 class="text-[17px] font-semibold leading-none">{{ titulo }}</h1>
+    <span id="etapa-texto" class="shrink-0 text-[12px] text-gray-500">Etapa 1 de {{ etapas|length }}</span>
+  </header>
+
+  {% if form.non_field_errors %}
+  <div class="mx-4 mb-3 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-red-700">{{ form.non_field_errors }}</div>
+  {% endif %}
+
+  <div role="tablist" aria-label="Etapas do cadastro" class="assistente-abas">
+    {% for etapa in etapas %}
+    <button type="button" role="tab" class="assistente-aba{% if etapa.tem_erro %} com-erro{% endif %}" data-aba="{{ forloop.counter0 }}" aria-selected="{% if forloop.first %}true{% else %}false{% endif %}">
+      <span class="num">{{ forloop.counter }}</span>{{ etapa.titulo }}
+    </button>
+    {% endfor %}
+  </div>
+
+  {% for etapa in etapas %}
+  <section role="tabpanel" data-painel="{{ forloop.counter0 }}" {% if etapa.tem_erro %}data-erro{% endif %} {% if not forloop.first %}hidden{% endif %}
+           class="grid grid-cols-1 gap-x-4 gap-y-3 p-4 sm:grid-cols-3">
+    {% for campo, colunas in etapa.campos %}
+    {% if campo.name != 'rastreador' %}{# Tag e Rastreador dividem a mesma celula: o rastreador e desenhado junto com a tag #}
+    <div data-campo="{{ campo.name }}" class="campo {% if colunas == 2 %}sm:col-span-2{% elif colunas == 3 %}sm:col-span-3{% endif %}">
+      {% if campo.field.widget.input_type == 'checkbox' %}
+      <div style="display:flex;align-items:center;gap:24px;height:42px;margin-top:22px">
+        <label for="{{ campo.id_for_label }}" class="campo-rotulo" style="display:flex;align-items:center;gap:8px;margin:0;cursor:pointer">{{ campo }}<span>{{ campo.label }}</span></label>
+        {% if campo.name == 'tag' %}<label for="{{ form.rastreador.id_for_label }}" class="campo-rotulo" style="display:flex;align-items:center;gap:8px;margin:0;cursor:pointer">{{ form.rastreador }}<span>{{ form.rastreador.label }}</span></label>{% endif %}
+      </div>
+      {% else %}
+      <label for="{{ campo.id_for_label }}" class="campo-rotulo">{{ campo.label }}{% if campo.field.required %} <span class="text-red-600">*</span>{% endif %}</label>
+      {{ campo }}
+      {% for a in enviados|item:campo.name %}{% if forloop.first %}<p class="campo-ajuda">Já enviado: {% endif %}<a class="link-acao" href="{% url 'anexo_baixar' a.pk %}">{{ a.nome_arquivo }}</a>{% if forloop.last %}</p>{% else %}, {% endif %}{% endfor %}
+      {% endif %}
+      {% if campo.name == 'modelo' %}<p class="campo-ajuda">Não encontrou? Cadastre em <a class="link-acao" href="{% url 'marcas_lista' %}">Marcas</a> e <a class="link-acao" href="{% url 'modelos_lista' %}">Modelos</a>.</p>
+      {% elif campo.help_text %}<p class="campo-ajuda">{{ campo.help_text }}</p>{% endif %}
+      {% if campo.errors %}<p class="mt-1 text-[12px] font-medium text-red-700">{{ campo.errors|join:" " }}</p>{% endif %}
+    </div>
+    {% endif %}
+    {% endfor %}
+  </section>
+  {% endfor %}
+  {{ form.marca_dos_modelos|json_script:"modelos-marcas" }}
+
+  <footer class="flex items-center justify-between gap-2 border-t border-gray-200 bg-gray-50 px-4 py-3">
+    <a href="{% if object %}{% url 'veiculos_detalhe' object.pk %}{% else %}{% url 'veiculos_lista' %}{% endif %}" class="btn-secundario">Cancelar</a>
+    <div class="flex gap-2">
+      <button type="button" id="etapa-voltar" class="btn-secundario" hidden>Voltar</button>
+      <button type="button" id="etapa-proximo" class="btn-primario">Próximo</button>
+      <button type="submit" id="etapa-salvar" class="btn-primario" hidden>Salvar</button>
+    </div>
+  </footer>
+</form>
+{% endwith %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function () {
+  var form = document.getElementById('assistente');
+  var abas = Array.from(form.querySelectorAll('[data-aba]'));
+  var paineis = Array.from(form.querySelectorAll('[data-painel]'));
+  var voltar = document.getElementById('etapa-voltar'), proximo = document.getElementById('etapa-proximo'), salvar = document.getElementById('etapa-salvar');
+  var atual = 0;
+
+  function ir(n) {
+    atual = n;
+    paineis.forEach(function (p, i) { p.hidden = i !== n; });
+    abas.forEach(function (a, i) { a.setAttribute('aria-selected', i === n ? 'true' : 'false'); });
+    document.getElementById('etapa-texto').textContent = 'Etapa ' + (n + 1) + ' de ' + paineis.length;
+    voltar.hidden = n === 0;
+    proximo.hidden = n === paineis.length - 1;
+    salvar.hidden = n !== paineis.length - 1;
+    abas[n].scrollIntoView({ block: 'nearest', inline: 'nearest' });
+  }
+  // A primeira conta invalida do painel recebe o foco com a mensagem do navegador (campo vazio, numero fora da faixa...)
+  function valido(n) {
+    var campos = paineis[n].querySelectorAll('input, select, textarea');
+    for (var i = 0; i < campos.length; i++) {
+      if (!campos[i].checkValidity()) { campos[i].reportValidity(); return false; }
+    }
+    return true;
+  }
+
+  // Marca -> Modelo: a lista de modelos mostra so os da marca escolhida (sem marca, so a orientacao "Selecione a marca")
+  var marcaSel = document.getElementById('id_marca'), modeloSel = document.getElementById('id_modelo');
+  var marcaDoModelo = JSON.parse(document.getElementById('modelos-marcas').textContent);
+  var todosOsModelos = Array.from(modeloSel.options).filter(function (o) { return o.value; });
+  function filtrarModelos() {
+    var marca = marcaSel.value, escolhido = modeloSel.value;
+    modeloSel.innerHTML = '';
+    modeloSel.add(new Option(marca ? 'Selecione' : 'Selecione a marca', ''));
+    todosOsModelos.forEach(function (o) { if (marca && String(marcaDoModelo[o.value]) === marca) modeloSel.add(o); });
+    if (marca && String(marcaDoModelo[escolhido]) === marca) modeloSel.value = escolhido;   // mantem o modelo se ele e da marca
+  }
+  marcaSel.addEventListener('change', filtrarModelos);
+  if (modeloSel.value && !marcaSel.value) marcaSel.value = marcaDoModelo[modeloSel.value] || '';   // volta do servidor so com o modelo
+  filtrarModelos();
+
+  // Autonomia e bateria so para eletricos: com outro combustivel os campos somem, ficam vazios e nao sao enviados
+  var combustivelSel = document.getElementById('id_combustivel');
+  var camposEletricos = Array.from(form.querySelectorAll('[data-campo="autonomia_km"], [data-campo="capacidade_bateria_kwh"]'));
+  function mostrarEletricos() {
+    var opcao = combustivelSel.options[combustivelSel.selectedIndex];
+    var eletrico = !!opcao && opcao.text.trim().toLowerCase() === 'elétrico';
+    camposEletricos.forEach(function (c) {
+      c.hidden = !eletrico;
+      c.querySelectorAll('input').forEach(function (i) { i.disabled = !eletrico; if (!eletrico) i.value = ''; });
+    });
+  }
+  combustivelSel.addEventListener('change', mostrarEletricos);
+  mostrarEletricos();
+
+  abas.forEach(function (aba, i) { aba.addEventListener('click', function () { ir(i); }); });
+  voltar.addEventListener('click', function () { ir(atual - 1); });
+  proximo.addEventListener('click', function () { if (valido(atual)) { ir(atual + 1); window.scrollTo(0, 0); } });
+  form.addEventListener('keydown', function (e) {   // Enter em um campo avanca a etapa em vez de enviar o formulario inteiro
+    if (e.key !== 'Enter' || e.target.tagName === 'TEXTAREA' || e.target.tagName === 'BUTTON') return;
+    e.preventDefault();
+    if (atual < paineis.length - 1) proximo.click();
+  });
+  form.addEventListener('submit', function (e) {   // no fim, confere todas as etapas e abre a primeira com problema
+    for (var i = 0; i < paineis.length; i++) {
+      var invalido = paineis[i].querySelector(':invalid');
+      if (!invalido) continue;
+      e.preventDefault();
+      ir(i);                     // abre a etapa antes de pedir o aviso: campo escondido nao mostra mensagem
+      invalido.reportValidity();
+      return;
+    }
+  });
+
+  var comErro = paineis.findIndex(function (p) { return p.hasAttribute('data-erro'); });   // volta do servidor com erro: abre essa etapa
+  ir(comErro >= 0 ? comErro : 0);
+})();
+</script>
+{% endblock %}

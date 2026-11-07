@@ -61,20 +61,20 @@ class LeituraTest(DuasPrefeiturasTest):
     def test_mesmo_km_e_aceito(self):
         registrar_leitura(veiculo=self.veiculo_a, odometro=1000)
 
-    def test_horimetro_tambem_nao_diminui(self):
-        registrar_leitura(veiculo=self.veiculo_a, horimetro=Decimal('10.5'))
-        with self.assertRaises(ValidationError):
-            registrar_leitura(veiculo=self.veiculo_a, horimetro=Decimal('10.4'))
-
     def test_precisa_de_km_ou_horimetro(self):
         with self.assertRaises(ValidationError):
             registrar_leitura(veiculo=self.veiculo_a)
 
 
 class VeiculosTelasTest(TelasTest):
+    def setUp(self):
+        super().setUp()
+        self.modelo = Modelo.objects.create(marca=Marca.objects.create(nome='Marca de Teste'), nome='Modelo de Teste')
+
     def dados(self, **extras):
         return {'placa': 'GHI3J45', 'tipo_frota': 'PROPRIO', 'situacao': 'DISPONIVEL', 'secretaria': self.sec_a.pk,
-                'centro_custo': self.centro_a.pk, 'odometro_atual': '2500', **extras}
+                'centro_custo': self.centro_a.pk, 'odometro_atual': '2500', 'modelo': self.modelo.pk,
+                'categoria': self.categoria_a.pk, **extras}
 
     def test_gestor_cadastra_veiculo_com_leitura_e_lotacao_iniciais(self):
         self.entrar_como(self.gestor_a, 'a')
@@ -112,6 +112,19 @@ class VeiculosTelasTest(TelasTest):
         resposta = self.client.post('/veiculos/novo/', self.dados(secretaria=self.sec2_a.pk, unidade=self.unidade_a.pk))
         self.assertContains(resposta, 'não pertence à secretaria')
 
+    def test_proprietario_e_escolhido_entre_os_fornecedores_da_prefeitura(self):
+        self.entrar_como(self.gestor_a, 'a')
+        campo = self.client.get('/veiculos/novo/').context['form'].fields['proprietario']
+        self.assertEqual(list(campo.queryset), [self.fornecedor_a])   # so os da prefeitura A
+        self.client.post('/veiculos/novo/', self.dados(proprietario=self.fornecedor_a.pk))
+        self.assertEqual(Veiculo.objects.get(placa='GHI3J45').proprietario_id, self.fornecedor_a.pk)
+
+    def test_proprietario_de_outra_prefeitura_e_recusado(self):
+        self.entrar_como(self.gestor_a, 'a')
+        resposta = self.client.post('/veiculos/novo/', self.dados(proprietario=self.fornecedor_b.pk))
+        self.assertEqual(resposta.status_code, 200)
+        self.assertFalse(Veiculo.objects.filter(placa='GHI3J45').exists())
+
     def test_nao_cadastra_com_secretaria_ou_centro_de_outra_prefeitura(self):
         self.entrar_como(self.gestor_a, 'a')
         self.client.post('/veiculos/novo/', self.dados(secretaria=self.sec_b.pk))
@@ -131,6 +144,146 @@ class VeiculosTelasTest(TelasTest):
     def ids_da_lista(self, parametros=''):
         """Os veiculos que a tabela recebe (JSON), ja com o escopo do perfil aplicado."""
         return {v['id'] for v in self.client.get('/veiculos/dados/' + parametros).json()}
+
+    def test_lista_traz_marca_e_modelo_em_campos_separados(self):
+        self.entrar_como(self.gestor_a, 'a')
+        self.client.get('/veiculos/dados/')   # a requisicao fixa a prefeitura no banco; so entao o update enxerga os veiculos
+        modelo = Modelo.objects.create(marca=Marca.objects.create(nome='Fiat'), nome='Uno')
+        Veiculo.objects.filter(pk=self.veiculo_a.pk).update(modelo=modelo)
+        Veiculo.objects.filter(pk=self.veiculo2_a.pk).update(modelo=None)
+        dados = {v['id']: v for v in self.client.get('/veiculos/dados/').json()}
+        self.assertEqual((dados[self.veiculo_a.pk]['marca'], dados[self.veiculo_a.pk]['modelo']), ('Fiat', 'Uno'))
+        self.assertEqual((dados[self.veiculo2_a.pk]['marca'], dados[self.veiculo2_a.pk]['modelo']), ('', ''))   # sem modelo cadastrado
+
+    def test_cadastro_e_um_assistente_de_8_etapas(self):
+        self.entrar_como(self.gestor_a, 'a')
+        resposta = self.client.get('/veiculos/novo/')
+        for texto in ('Novo veículo', 'Etapa 1 de 8', 'Identificação', 'Abastecimento', 'Situação', 'Lotação', 'Dados técnicos', 'Valores',
+                      'Documentos', 'Fotos', 'multipart/form-data',
+                      'ABC-1D23', 'Selecione', 'Cadastre em'):
+            self.assertContains(resposta, texto)
+        etapas = resposta.context['form'].etapas_montadas()
+        self.assertEqual([e['titulo'] for e in etapas],
+                         ['Identificação', 'Abastecimento', 'Situação', 'Lotação', 'Dados técnicos', 'Valores', 'Documentos', 'Fotos'])
+        self.assertEqual([c.name for c, _ in etapas[6]['campos']],
+                         ['vencimento_ipva', 'vencimento_licenciamento', 'vencimento_seguro', 'crlv'])
+        self.assertEqual([c.name for c, _ in etapas[7]['campos']],
+                         ['foto_frente', 'foto_lateral_esq', 'foto_lateral_dir', 'foto_traseira', 'foto_hodometro'])
+        self.assertEqual([c.name for c, _ in etapas[3]['campos']], ['secretaria', 'unidade', 'centro_custo'])
+        self.assertEqual([c.name for c, _ in etapas[1]['campos']], ['combustivel', 'capacidade_tanque', 'consumo_referencia'])
+        mostrados = {c.name for e in etapas for c, _ in e['campos']}
+        self.assertEqual(mostrados, set(resposta.context['form'].fields))   # nenhum campo some do assistente
+
+    def test_dados_tecnicos_novos_sao_gravados(self):
+        self.entrar_como(self.gestor_a, 'a')
+        tecnicos = [c.name for c, _ in self.client.get('/veiculos/novo/').context['form'].etapas_montadas()[4]['campos']]
+        for nome in ('capacidade_carga_kg', 'tracao', 'medida_pneu', 'intervalo_revisao_km', 'intervalo_revisao_meses',
+                     'rastreador', 'tag', 'autonomia_km', 'capacidade_bateria_kwh'):
+            self.assertIn(nome, tecnicos)
+        self.client.post('/veiculos/novo/', self.dados(
+            capacidade_carga_kg='1500', tracao='4X4', medida_pneu='265/70 R16', intervalo_revisao_km='10000',
+            intervalo_revisao_meses='6', rastreador='True', tag='False', autonomia_km='300', capacidade_bateria_kwh='60.5'))
+        veiculo = Veiculo.objects.get(placa='GHI3J45')
+        self.assertEqual((veiculo.capacidade_carga_kg, veiculo.tracao, veiculo.medida_pneu), (1500, '4X4', '265/70 R16'))
+        self.assertEqual((veiculo.intervalo_revisao_km, veiculo.intervalo_revisao_meses), (10000, 6))
+        self.assertEqual((veiculo.rastreador, veiculo.tag), (True, False))
+        self.assertEqual((veiculo.autonomia_km, veiculo.capacidade_bateria_kwh), (300, Decimal('60.5')))
+
+    def test_rastreador_e_tag_comecam_em_nao_e_tracao_invalida_e_recusada(self):
+        self.entrar_como(self.gestor_a, 'a')
+        self.client.post('/veiculos/novo/', self.dados())
+        veiculo = Veiculo.objects.get(placa='GHI3J45')
+        self.assertEqual((veiculo.rastreador, veiculo.tag, veiculo.tracao), (False, False, ''))
+        resposta = self.client.post('/veiculos/novo/', self.dados(placa='JKL4M56', tracao='6X6'))
+        self.assertEqual(resposta.status_code, 200)
+        self.assertFalse(Veiculo.objects.filter(placa='JKL4M56').exists())
+
+    def test_vencimentos_documentos_e_fotos_no_cadastro(self):
+        pasta = tempfile.mkdtemp(prefix='sigfrotas_teste_')
+        self.addCleanup(shutil.rmtree, pasta, ignore_errors=True)
+        with override_settings(MEDIA_ROOT=pasta):
+            self.entrar_como(self.gestor_a, 'a')
+            resposta = self.client.post('/veiculos/novo/', self.dados(
+                vencimento_ipva='2027-03-31', vencimento_licenciamento='2027-07-31',
+                crlv=SimpleUploadedFile('crlv.pdf', b'%PDF-1.4 teste', content_type='application/pdf'),
+                foto_frente=SimpleUploadedFile('frente.jpg', b'jpg', content_type='image/jpeg'),
+                foto_hodometro=SimpleUploadedFile('hodometro.jpg', b'jpg', content_type='image/jpeg')))
+            veiculo = Veiculo.objects.get(placa='GHI3J45')
+            self.assertRedirects(resposta, f'/veiculos/{veiculo.pk}/', fetch_redirect_response=False)
+            self.assertEqual((veiculo.vencimento_ipva, veiculo.vencimento_licenciamento, veiculo.vencimento_seguro),
+                             (date(2027, 3, 31), date(2027, 7, 31), None))   # seguro e so quando houver
+            anexos = Anexo.objects.filter(entidade='veiculos', entidade_id=veiculo.pk)
+            self.assertEqual(sorted(a.categoria for a in anexos), ['CRLV', 'FOTO_FRENTE', 'FOTO_HODOMETRO'])
+            self.assertTrue(all(a.municipio_id == self.a.id and a.enviado_por_id == self.gestor_a.pk for a in anexos))
+            detalhe = self.client.get(f'/veiculos/{veiculo.pk}/')
+            self.assertContains(detalhe, 'Foto: frente')
+            edicao = self.client.get(f'/veiculos/{veiculo.pk}/editar/')
+            self.assertContains(edicao, 'Já enviado')
+            self.assertContains(edicao, 'crlv.pdf')
+
+    def test_arquivo_de_tipo_errado_ou_grande_demais_e_recusado(self):
+        pasta = tempfile.mkdtemp(prefix='sigfrotas_teste_')
+        self.addCleanup(shutil.rmtree, pasta, ignore_errors=True)
+        with override_settings(MEDIA_ROOT=pasta):
+            self.entrar_como(self.gestor_a, 'a')
+            resposta = self.client.post('/veiculos/novo/', self.dados(
+                foto_frente=SimpleUploadedFile('virus.exe', b'MZ')))
+            self.assertEqual(resposta.status_code, 200)
+            self.assertEqual([e['tem_erro'] for e in resposta.context['form'].etapas_montadas()], [False] * 7 + [True])
+            with override_settings(ANEXO_TAMANHO_MAXIMO=10):
+                resposta = self.client.post('/veiculos/novo/', self.dados(
+                    crlv=SimpleUploadedFile('crlv.pdf', b'%PDF-1.4 um arquivo maior que dez bytes')))
+            self.assertContains(resposta, 'passa do limite')
+            self.assertFalse(Veiculo.objects.filter(placa='GHI3J45').exists())   # nada foi gravado
+            self.assertFalse(Anexo.objects.filter(entidade='veiculos').exists())
+
+    def test_marca_vem_antes_do_modelo_na_mesma_linha_e_nao_e_gravada(self):
+        self.entrar_como(self.gestor_a, 'a')
+        etapa1 = self.client.get('/veiculos/novo/').context['form'].etapas_montadas()[0]['campos']
+        linha = [(c.name, colunas) for c, colunas in etapa1][5:8]
+        self.assertEqual(linha, [('marca', 1), ('modelo', 1), ('categoria', 1)])   # as tres cabem juntas na grade de 3 colunas
+        self.client.post('/veiculos/novo/', self.dados(marca=self.modelo.marca_id))
+        veiculo = Veiculo.objects.get(placa='GHI3J45')
+        self.assertEqual(veiculo.modelo_id, self.modelo.pk)
+        self.assertFalse(hasattr(veiculo, 'marca'))   # a marca vem sempre do modelo
+
+    def test_modelo_de_outra_marca_e_recusado(self):
+        self.entrar_como(self.gestor_a, 'a')
+        outra = Marca.objects.create(nome='Outra Marca')
+        resposta = self.client.post('/veiculos/novo/', self.dados(marca=outra.pk))   # o modelo do teste e da "Marca de Teste"
+        self.assertEqual(resposta.status_code, 200)
+        self.assertContains(resposta, 'não é da marca escolhida')
+        self.assertFalse(Veiculo.objects.filter(placa='GHI3J45').exists())
+
+    def test_edicao_ja_abre_com_a_marca_do_modelo(self):
+        self.entrar_como(self.gestor_a, 'a')
+        self.client.get('/veiculos/dados/')   # a requisicao fixa a prefeitura no banco; so entao o update enxerga o veiculo
+        Veiculo.objects.filter(pk=self.veiculo_a.pk).update(modelo=self.modelo)
+        formulario = self.client.get(f'/veiculos/{self.veiculo_a.pk}/editar/').context['form']
+        self.assertEqual(formulario.initial['marca'], self.modelo.marca_id)
+        self.assertEqual(formulario.marca_dos_modelos()[self.modelo.pk], self.modelo.marca_id)
+
+    def test_modelo_e_categoria_sao_obrigatorios_e_a_etapa_com_erro_reabre(self):
+        self.entrar_como(self.gestor_a, 'a')
+        dados = self.dados()
+        del dados['modelo'], dados['categoria']
+        resposta = self.client.post('/veiculos/novo/', dados)
+        self.assertEqual(resposta.status_code, 200)
+        self.assertFalse(Veiculo.objects.filter(placa='GHI3J45').exists())
+        self.assertEqual([e['tem_erro'] for e in resposta.context['form'].etapas_montadas()], [True] + [False] * 7)
+        self.assertContains(resposta, 'data-erro')
+
+    def test_erro_em_etapa_posterior_marca_so_aquela_etapa(self):
+        self.entrar_como(self.gestor_a, 'a')
+        resposta = self.client.post('/veiculos/novo/', self.dados(odometro_atual='-5'))   # o km fica na etapa 5
+        self.assertEqual([e['tem_erro'] for e in resposta.context['form'].etapas_montadas()], [False, False, False, False, True, False, False, False])
+
+    def test_editar_usa_o_mesmo_assistente_sem_o_km(self):
+        self.entrar_como(self.gestor_a, 'a')
+        resposta = self.client.get(f'/veiculos/{self.veiculo_a.pk}/editar/')
+        self.assertContains(resposta, 'Editar veículo')
+        self.assertContains(resposta, 'Etapa 1 de 8')
+        self.assertNotIn('odometro_atual', resposta.context['form'].fields)   # km so muda por leitura
 
     def test_fiscal_ve_so_os_veiculos_dos_seus_centros(self):
         self.entrar_como(self.fiscal_a, 'a')

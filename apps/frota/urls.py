@@ -9,9 +9,9 @@ ROTAS['veiculos'] = dict(
     ROTAS['veiculos'],
     lista=views.VeiculosLista.as_view(),
     novo=views.VeiculoNovo.as_view(model=views.Veiculo, form_class=views.VeiculoForm, base='veiculos',
-                                   titulo='Novo: veículo', permissao=views.GERIR),
+                                   titulo='Novo veículo', permissao=views.GERIR),
     editar=views.VeiculoEditar.as_view(model=views.Veiculo, form_class=views.VeiculoForm, base='veiculos',
-                                       titulo='Editar: veículo', permissao=views.GERIR),
+                                       titulo='Editar veículo', permissao=views.GERIR),
 )
 
 ROTAS['marcas'] = dict(ROTAS['marcas'], novo=views.MarcaNova.as_view(

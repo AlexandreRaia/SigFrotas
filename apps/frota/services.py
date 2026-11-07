@@ -7,26 +7,18 @@ from .models import LeituraVeiculo, Veiculo, VeiculoLotacao
 
 
 @transaction.atomic
-def registrar_leitura(*, veiculo, odometro=None, horimetro=None, origem='MANUAL', origem_id=None, lido_em=None):
-    """Grava a leitura e atualiza o km/horimetro atual do veiculo. Recusa km ou horimetro menor que o atual."""
-    if odometro is None and horimetro is None:
-        raise ValidationError('Informe o km ou o horímetro.')
+def registrar_leitura(*, veiculo, odometro=None, origem='MANUAL', origem_id=None, lido_em=None):
+    """Grava a leitura e atualiza o km/horimetro atual do veiculo. Recusa valor menor que o atual."""
+    if odometro is None:
+        raise ValidationError('Informe o km/horímetro.')
     atual = Veiculo.objects.select_for_update().get(pk=veiculo.pk, municipio_id=veiculo.municipio_id)
-    if odometro is not None and odometro < atual.odometro_atual:
-        raise ValidationError(f'O km não pode diminuir (atual: {atual.odometro_atual}).')
-    if horimetro is not None and atual.horimetro_atual is not None and horimetro < atual.horimetro_atual:
-        raise ValidationError(f'O horímetro não pode diminuir (atual: {atual.horimetro_atual}).')
+    if odometro < atual.odometro_atual:
+        raise ValidationError(f'O km/horímetro não pode diminuir (atual: {atual.odometro_atual}).')
     leitura = LeituraVeiculo.objects.create(
-        municipio_id=atual.municipio_id, veiculo=atual, odometro=odometro, horimetro=horimetro,
+        municipio_id=atual.municipio_id, veiculo=atual, odometro=odometro,
         lido_em=lido_em or timezone.now(), origem=origem, origem_id=origem_id)
-    campos = []
-    if odometro is not None:
-        atual.odometro_atual = odometro
-        campos.append('odometro_atual')
-    if horimetro is not None:
-        atual.horimetro_atual = horimetro
-        campos.append('horimetro_atual')
-    atual.save(update_fields=campos + ['atualizado_em'])
+    atual.odometro_atual = odometro
+    atual.save(update_fields=['odometro_atual', 'atualizado_em'])
     return leitura
 
 

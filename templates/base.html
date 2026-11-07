@@ -33,7 +33,7 @@
         <i class="ri-truck-line text-[24px]" aria-hidden="true"></i><span class="hidden sm:inline">SigFrotas</span>
       </a>
     </div>
-    <div class="flex items-center gap-[14px]">
+    <div class="flex min-w-0 items-center gap-2 sm:gap-[14px]">
       <button id="alternar-tema" type="button" class="flex rounded-lg p-1 text-[22px] text-gray-600 hover:bg-gray-100" title="Alternar entre tema claro e escuro" aria-label="Alternar entre tema claro e escuro">
         <i class="icone-lua ri-moon-line" aria-hidden="true"></i><i class="icone-sol ri-sun-line" aria-hidden="true"></i>
       </button>
@@ -41,10 +41,11 @@
         <i class="ri-notification-3-line" aria-hidden="true"></i>
         {% if notificacoes_nao_lidas %}<span class="absolute right-[6px] top-[5px] h-2 w-2 rounded-full border border-white bg-red-600"></span>{% endif %}
       </a>
-      <div class="whitespace-nowrap text-right leading-[1.25]" title="{{ user.municipio.nome }}">
-        <b class="block font-medium">{{ user.nome }}</b><small class="text-[12px] text-gray-500">{{ user.perfil.nome }}</small>
+      {# no celular o nome encurta com reticencias e a bolinha das iniciais some, para o cabecalho caber em 390px #}
+      <div class="min-w-0 max-w-[104px] whitespace-nowrap text-right leading-[1.25] sm:max-w-none" title="{{ user.municipio.nome }}">
+        <b class="block truncate font-medium">{{ user.nome }}</b><small class="block truncate text-[12px] text-gray-500">{{ user.perfil.nome }}</small>
       </div>
-      <span class="flex h-[34px] w-[34px] shrink-0 items-center justify-center rounded-full bg-primaria-50 text-[13px] font-medium text-primaria-800" title="{{ user.nome }} · {{ user.municipio.nome }}">{{ user|iniciais }}</span>
+      <span class="hidden h-[34px] w-[34px] shrink-0 items-center justify-center rounded-full sm:flex bg-primaria-50 text-[13px] font-medium text-primaria-800" title="{{ user.nome }} · {{ user.municipio.nome }}">{{ user|iniciais }}</span>
       <form method="post" action="{% url 'sair' %}">{% csrf_token %}
         <button class="flex h-9 w-9 items-center justify-center rounded-lg border border-gray-200 text-[18px] text-gray-600 hover:bg-gray-100" title="Sair" aria-label="Sair">
           <i class="ri-logout-box-r-line" aria-hidden="true"></i>

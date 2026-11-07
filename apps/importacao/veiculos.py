@@ -2,6 +2,7 @@
 from django.core.exceptions import ValidationError
 
 from apps.core.models import CentroCusto, Secretaria
+from apps.financeiro.models import Fornecedor
 from apps.frota.forms import VeiculoForm
 from apps.frota.models import CategoriaVeiculo, Combustivel, Marca, Modelo, Veiculo
 
@@ -26,7 +27,7 @@ COLUNAS = [
     ('renavam', False, ''),
     ('chassi', False, '17 caracteres'),
     ('capacidade_tanque', False, 'Litros, ex.: 55,5'),
-    ('proprietario', False, 'Para veículos locados, cedidos ou estaduais'),
+    ('proprietario', False, 'Razão social do fornecedor (precisa existir); para locados, cedidos ou estaduais'),
 ]
 EXEMPLO = ['ABC1D23', 'V-001', 'Fiat', 'Uno', '2020', '2021', 'Branco', 'Flex', 'Automóvel', 'SMA', '100', 'Próprio',
            'Disponível', '35000', '', '', '47,5', '']
@@ -47,7 +48,7 @@ def importar_linha(linha, municipio_id):
         'ano_fabricacao': inteiro(linha.get('ano_fabricacao')), 'ano_modelo': inteiro(linha.get('ano_modelo')),
         'odometro_atual': inteiro(linha.get('km')) or '0', 'renavam': linha.get('renavam', ''),
         'chassi': linha.get('chassi', ''), 'capacidade_tanque': decimal_br(linha.get('capacidade_tanque')),
-        'proprietario': linha.get('proprietario', ''),
+        'proprietario': _buscar(Fornecedor, municipio_id, 'razao_social', linha.get('proprietario'), 'Proprietário (fornecedor)'),
         'tipo_frota': escolha(linha.get('tipo_frota'), Veiculo.TIPOS_FROTA, 'Tipo de frota') or 'PROPRIO',
         'situacao': escolha(linha.get('situacao'), Veiculo.SITUACOES, 'Situação') or 'DISPONIVEL',
         'secretaria': _buscar(Secretaria, municipio_id, 'sigla', linha.get('secretaria'), 'Secretaria'),

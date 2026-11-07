@@ -1,5 +1,5 @@
 {% if form.grupos %}
-<form method="post" class="max-w-5xl space-y-6" hx-post="{{ request.path }}" hx-target="this" hx-swap="outerHTML">
+<form method="post" class="flex max-w-5xl flex-col gap-6" hx-post="{{ request.path }}" hx-target="this" hx-swap="outerHTML">
   {% csrf_token %}
   {% for oculto in form.hidden_fields %}{{ oculto }}{% endfor %}
   {% if form.non_field_errors %}<div class="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-red-700">{{ form.non_field_errors }}</div>{% endif %}

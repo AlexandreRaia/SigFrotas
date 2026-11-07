@@ -11,8 +11,8 @@ from apps.core.models import Anexo
 from apps.core.services import anexar
 from apps.core.views import Editar, Novo, PermissaoMixin, rotas_cadastro
 
-from .forms import (AnexoForm, CategoriaVeiculoForm, EquipamentoForm, LeituraForm, MarcaForm, ModeloForm,
-                    VeiculoForm)
+from .forms import (FOTOS_DO_VEICULO, AnexoForm, CategoriaVeiculoForm, EquipamentoForm, LeituraForm, MarcaForm,
+                    ModeloForm, VeiculoForm)
 from .models import CategoriaVeiculo, Marca, Modelo, Veiculo, VeiculoEquipamento
 
 GERIR = 'frota.gerir'
@@ -33,7 +33,7 @@ ROTAS = {
         filtros=(('situacao', 'Situação', Veiculo.SITUACOES), ('tipo_frota', 'Tipo de frota', Veiculo.TIPOS_FROTA))),
     'categorias_veiculo': rotas_cadastro(
         'categorias_veiculo', CategoriaVeiculo, CategoriaVeiculoForm, 'Categorias de veículo', 'categoria de veículo',
-        (('nome', 'Nome'), ('cnh_minima', 'CNH mínima'), ('usa_horimetro', 'Usa horímetro'), ('ativo', 'Situação')),
+        (('nome', 'Nome'), ('cnh_minima', 'CNH mínima'), ('ativo', 'Situação')),
         GERIR, ver=VER),
     # Marcas e modelos: catalogo compartilhado por todas as prefeituras (sem municipio_id), sem inativar nem apagar.
     # Fluxo: cria a marca -> cai na lista de modelos dela -> "+" ja abre o formulario com a marca escolhida.
@@ -77,7 +77,8 @@ class VeiculosDados(PermissaoMixin, View):
             cor, rotulo = ETIQUETA_DA_SITUACAO.get(v.situacao, ('inativa', v.get_situacao_display()))
             inativo = v.situacao in ('INATIVO', 'BAIXADO')
             dados.append({
-                'id': v.pk, 'placa': v.placa, 'prefixo': v.prefixo, 'modelo': str(v.modelo) if v.modelo else '',
+                'id': v.pk, 'placa': v.placa, 'prefixo': v.prefixo,
+                'marca': v.modelo.marca.nome if v.modelo else '', 'modelo': v.modelo.nome if v.modelo else '',
                 'categoria': v.categoria.nome if v.categoria else '', 'secretaria': v.secretaria.sigla if v.secretaria else '',
                 'km': v.odometro_atual, 'situacao': cor, 'situacao_rotulo': rotulo, 'inativo': inativo,
                 'url_ver': reverse('veiculos_detalhe', args=[v.pk]),
@@ -105,20 +106,41 @@ class VeiculoAlternarSituacao(PermissaoMixin, View):
         return JsonResponse({'ok': True, 'situacao': veiculo.situacao})
 
 
-class VeiculoNovo(Novo):
+# O cadastro do veiculo e um assistente em 8 etapas (frota/veiculo_form.html), enviado de uma vez so no fim
+# (com os arquivos: documentos e fotos).
+class AssistenteDoVeiculo:
+    template_name = template_parcial = 'frota/veiculo_form.html'
+
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        kwargs['usuario'] = self.request.user   # fica como quem enviou os arquivos
+        return kwargs
+
     def get_success_url(self):
         return reverse('veiculos_detalhe', args=[self.object.pk])
 
 
-class VeiculoEditar(Editar):
-    def get_success_url(self):
-        return reverse('veiculos_detalhe', args=[self.object.pk])
+class VeiculoNovo(AssistenteDoVeiculo, Novo):
+    pass
+
+
+class VeiculoEditar(AssistenteDoVeiculo, Editar):
+    pass
 
 
 def _veiculo(request, pk):
     consulta = escopo_veiculos(request.user, Veiculo.objects.filter(municipio_id=request.user.municipio_id))
     return get_object_or_404(consulta.select_related('modelo__marca', 'categoria', 'combustivel', 'secretaria',
                                                      'unidade', 'centro_custo', 'contrato_locacao'), pk=pk)
+
+
+def _anexos_com_rotulo(veiculo):
+    rotulos = {'CRLV': 'CRLV', 'FOTO': 'Foto', 'OUTRO': 'Outro documento',
+               **{c: f'Foto: {r.lower()}' for c, r in FOTOS_DO_VEICULO.items()}}
+    anexos = Anexo.objects.filter(municipio_id=veiculo.municipio_id, entidade='veiculos', entidade_id=veiculo.pk)
+    for anexo in anexos:
+        anexo.rotulo = rotulos.get(anexo.categoria, anexo.categoria)
+    return anexos
 
 
 class VeiculoDetalhe(PermissaoMixin, View):
@@ -132,7 +154,7 @@ class VeiculoDetalhe(PermissaoMixin, View):
             'equipamentos': veiculo.equipamentos.all(),
             'lotacoes': veiculo.lotacoes.select_related('secretaria', 'unidade', 'centro_custo'),
             'leituras': veiculo.leituras.all()[:15],
-            'anexos': Anexo.objects.filter(municipio_id=veiculo.municipio_id, entidade='veiculos', entidade_id=veiculo.pk),
+            'anexos': _anexos_com_rotulo(veiculo),
             'form_equipamento': EquipamentoForm() if pode_gerir else None,
             'form_leitura': LeituraForm(veiculo=veiculo) if pode_gerir else None,
             'form_anexo': AnexoForm() if pode_gerir else None,
