@@ -1,16 +1,20 @@
 {% extends 'base.html' %}
 {% block titulo %}Auditoria · SigFrotas{% endblock %}
 {% block conteudo %}
-<h1 class="mb-6 text-2xl font-semibold tracking-tight">Auditoria</h1>
-<form method="get" class="filtro cartao mb-6 flex flex-wrap items-end gap-4 p-4"
-      hx-get="{% url 'auditoria' %}" hx-target="#resultado" hx-push-url="true" hx-indicator="#resultado" hx-trigger="submit, change delay:300ms">
-  {% for campo in filtro %}
-    <div>
-      <label for="{{ campo.id_for_label }}" class="mb-1 block font-medium">{{ campo.label }}</label>
-      {{ campo }}
-    </div>
-  {% endfor %}
-  <button class="btn-primario">Filtrar</button>
+{# Cartao de filtro no padrao da lista de veiculos: campos numa linha, sem rotulos (o texto de exemplo diz o que e) #}
+<form method="get" class="mb-[14px] flex flex-wrap items-center gap-2 rounded-xl border border-gray-200 bg-white px-[10px] py-2 sm:flex-nowrap"
+      hx-get="{% url 'auditoria' %}" hx-target="#resultado" hx-push-url="true" hx-indicator="#resultado" hx-trigger="submit, input delay:400ms, change">
+  <div class="relative min-w-0 basis-full sm:flex-1 sm:basis-auto">
+    <i class="ri-search-line pointer-events-none absolute left-[10px] top-1/2 -translate-y-1/2 text-[16px] text-gray-400" aria-hidden="true"></i>
+    <input type="text" name="tabela" value="{{ filtro.tabela.value|default_if_none:'' }}" placeholder="Tabela (ex.: veiculos)" aria-label="Tabela"
+           autocomplete="off" class="h-[34px] w-full py-0 pl-8 pr-[10px]">
+  </div>
+  <input type="number" name="registro_id" value="{{ filtro.registro_id.value|default_if_none:'' }}" placeholder="Registro (id)" aria-label="Registro (id)"
+         class="h-[34px] min-w-0 flex-1 px-[10px] py-0 sm:w-[130px] sm:flex-none">
+  <input type="date" name="de" value="{{ filtro.de.value|default_if_none:'' }}" title="De" aria-label="De"
+         class="h-[34px] min-w-0 flex-1 px-[10px] py-0 sm:w-[150px] sm:flex-none">
+  <input type="date" name="ate" value="{{ filtro.ate.value|default_if_none:'' }}" title="Até" aria-label="Até"
+         class="h-[34px] min-w-0 flex-1 px-[10px] py-0 sm:w-[150px] sm:flex-none">
 </form>
 <div id="resultado">{% include 'core/_auditoria_tabela.html' %}</div>
 {% endblock %}

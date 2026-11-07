@@ -1,33 +1,32 @@
 {% extends 'base.html' %}
 {% block titulo %}{{ titulo }} · SigFrotas{% endblock %}
 {% block conteudo %}
-<div class="mb-6 flex items-center justify-between">
-  <h1 class="text-2xl font-semibold tracking-tight">{{ titulo }}</h1>
-  {% if pode_criar %}
-  <a href="{% url base|add:'_novo' %}" class="btn-primario">
-    <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
-    Novo
-  </a>
-  {% endif %}
-</div>
-{% if tem_busca or filtros %}
-<form method="get" class="filtro cartao mb-5 flex flex-wrap items-end gap-4 p-4"
+{# Mesmo padrao da lista de veiculos: cartao de filtro numa linha (busca, listas, botao +) e a tabela abaixo #}
+{% if tem_busca or filtros or pode_criar %}
+<form method="get" class="mb-[14px] flex flex-wrap items-center gap-2 rounded-xl border border-gray-200 bg-white px-[10px] py-2 sm:flex-nowrap"
       hx-get="{{ request.path }}" hx-target="#resultado" hx-push-url="true" hx-indicator="#resultado" hx-trigger="submit, input delay:300ms">
+  {% if request.GET.ordem %}<input type="hidden" name="ordem" value="{{ request.GET.ordem }}">{% endif %}
   {% if tem_busca %}
-  <div class="min-w-[14rem] flex-1">
-    <label for="busca" class="mb-1 block font-medium">Buscar</label>
-    <input id="busca" type="text" name="busca" value="{{ busca }}" placeholder="Digite para buscar" autocomplete="off">
+  <div class="relative min-w-0 basis-full sm:flex-1 sm:basis-auto">
+    <i class="ri-search-line pointer-events-none absolute left-[10px] top-1/2 -translate-y-1/2 text-[16px] text-gray-400" aria-hidden="true"></i>
+    <input id="busca" type="text" name="busca" value="{{ busca }}" placeholder="Buscar {{ titulo|lower }}" autocomplete="off" aria-label="Buscar"
+           class="h-[34px] w-full py-0 pl-8 pr-[10px]">
   </div>
+  {% else %}
+  <div class="hidden flex-1 sm:block"></div>
   {% endif %}
   {% for campo, rotulo, opcoes, atual in filtros %}
-  <div>
-    <label for="f-{{ campo }}" class="mb-1 block font-medium">{{ rotulo }}</label>
-    <select id="f-{{ campo }}" name="{{ campo }}" class="!w-auto">
-      <option value="">Todos</option>
-      {% for valor, nome in opcoes %}<option value="{{ valor }}" {% if valor|stringformat:"s" == atual %}selected{% endif %}>{{ nome }}</option>{% endfor %}
-    </select>
-  </div>
+  <select id="f-{{ campo }}" name="{{ campo }}" class="h-[34px] min-w-0 flex-1 !w-auto px-[10px] py-0 sm:flex-none" aria-label="{{ rotulo }}">
+    <option value="">{{ rotulo }}</option>
+    {% for valor, nome in opcoes %}<option value="{{ valor }}" {% if valor|stringformat:"s" == atual %}selected{% endif %}>{{ nome }}</option>{% endfor %}
+  </select>
   {% endfor %}
+  {% if pode_criar %}
+  <a href="{% url base|add:'_novo' %}{% if parametros_novo %}?{{ parametros_novo }}{% endif %}" title="Novo" aria-label="Novo"
+     class="ml-auto flex h-[34px] w-[34px] shrink-0 items-center justify-center rounded-lg bg-primaria-700 text-white hover:bg-primaria-hover">
+    <i class="ri-add-line text-[20px]" aria-hidden="true"></i>
+  </a>
+  {% endif %}
 </form>
 {% endif %}
 <div id="resultado">{% include 'core/_lista_tabela.html' %}</div>

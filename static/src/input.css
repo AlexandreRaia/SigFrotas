@@ -2,48 +2,120 @@
 @tailwind components;
 @tailwind utilities;
 
-@font-face {
-  font-family: 'Inter'; font-weight: 100 900; font-style: normal; font-display: swap;
-  src: url("../fonts/inter-latin-var.woff2") format('woff2');
+/* ---------- Cores ----------
+   Tudo que e cor fica em variaveis. :root e o tema claro; html[data-tema=escuro] redefine as mesmas variaveis
+   (o botao do cabecalho troca o atributo). A escala de cinza (--g-*) alimenta as classes gray-/slate- do Tailwind. */
+:root {
+  /* identidade (cada prefeitura pode ter a sua cor no futuro) */
+  --p-50: #E8EFFF; --p-100: #DBE7FF; --p-700: #2563EB; --p-800: #1D4ED8; --p-900: #1E3A8A; --p-hover: #1D4ED8;
+  /* escala de cinza */
+  --g-50: #f9fafb; --g-100: #f3f4f6; --g-200: #e5e7eb; --g-300: #d1d5db; --g-400: #9ca3af; --g-500: #6b7280; --g-600: #4b5563;
+  --g-700: #374151; --g-800: #1f2937; --g-900: #111827; --g-950: #030712;
+  /* superficies e texto */
+  --fundo: #f6f7fb; --superficie: #ffffff; --texto: #111827; --texto-fraco: #4b5563; --texto-vazio: #6b7280;
+  --borda: #e5e7eb; --campo-borda: #d1d5db; --campo-fundo: #ffffff; --placeholder: #757575;
+  --linha: #f0f1f4; --cabecalho: #f9fafb; --passar-mouse: #f3f4f6; --seta: #9ca3af;
+  /* etiquetas de situacao */
+  --ok-fundo: #dcfce7; --ok-texto: #166534; --aviso-fundo: #fef3c7; --aviso-texto: #92400e;
+  --erro-fundo: #fee2e2; --erro-texto: #991b1b; --neutro-fundo: #f3f4f6; --neutro-texto: #4b5563;
+  --info-fundo: #e8efff; --info-texto: #1d4ed8;
+  color-scheme: light;
+}
+html[data-tema=escuro] {
+  --p-50: #1e2a4a; --p-100: #24335a; --p-800: #8fb1ff; --p-900: #b6ccff;
+  --g-50: #1a2233; --g-100: #1f2940; --g-200: #273044; --g-300: #374151; --g-400: #6b7788; --g-500: #8b95a7; --g-600: #aab3c2;
+  --g-700: #c5ccd8; --g-800: #dde2ea; --g-900: #eef0f4; --g-950: #f8fafc;
+  --fundo: #0f1420; --superficie: #161d2c; --texto: #e5e7eb; --texto-fraco: #aab3c2; --texto-vazio: #8b95a7;
+  --borda: #273044; --campo-borda: #374151; --campo-fundo: #0f1625; --placeholder: #8b95a7;
+  --linha: #1f2738; --cabecalho: #1a2233; --passar-mouse: #1f2940; --seta: #6b7788;
+  --ok-fundo: #123524; --ok-texto: #86efac; --aviso-fundo: #3b2f10; --aviso-texto: #fcd34d;
+  --erro-fundo: #3f1d1d; --erro-texto: #fca5a5; --neutro-fundo: #232b3b; --neutro-texto: #aab3c2;
+  --info-fundo: #1e2a4a; --info-texto: #93b4ff;
+  color-scheme: dark;
 }
 
-:root { --p-50: #EEF4FF; --p-100: #DBE7FF; --p-700: #2563EB; --p-800: #1D4ED8; --p-900: #1E3A8A; }
-
 @layer base {
-  body { font-feature-settings: 'cv11', 'ss01'; }
+  /* Fonte do sistema (Segoe UI no Windows), como no modelo aprovado */
+  html { font-family: "Segoe UI", system-ui, -apple-system, Roboto, "Helvetica Neue", Arial, sans-serif; line-height: normal; }
+  body { font-size: 14px; color: var(--texto); }
   td, th { font-variant-numeric: tabular-nums; }
 
   /* Campos de formulario */
-  input[type=text], input[type=email], input[type=password], input[type=date], input[type=number], select, textarea {
-    width: 100%; background: #fff; border: 1px solid #7A8699; border-radius: .5rem; padding: .55rem .75rem; color: #0F172A;
+  /* Especificidade (0,0,1): ganha do reset do Tailwind (vem antes) e perde das classes utilitarias (pl-9, h-[34px]...) */
+  input:where([type=text]), input:where([type=email]), input:where([type=password]), input:where([type=date]), input:where([type=number]),
+  input:where([type=datetime-local]), select, textarea {
+    width: 100%; background: var(--campo-fundo); border: 1px solid var(--campo-borda); border-radius: .5rem; padding: .5rem .75rem; color: var(--texto);
+    font-family: Arial, sans-serif;  /* fonte padrao dos campos no navegador, como no modelo aprovado */
   }
+  input::placeholder, textarea::placeholder { color: var(--placeholder); }
   input:focus, select:focus, textarea:focus { outline: 2px solid var(--p-700); outline-offset: 1px; border-color: var(--p-700); }
   .filtro input { width: auto; }
 }
 
 @layer components {
-  .btn { @apply inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2 font-medium transition-colors; }
-  .btn-primario { @apply btn bg-primaria-700 text-white hover:bg-primaria-800; }
-  .btn-secundario { @apply btn border border-slate-300 bg-white text-slate-700 hover:bg-slate-50; }
+  /* Botoes: 34px de altura e cantos de 8px, como o botao "+" da lista de veiculos */
+  .btn { @apply inline-flex h-[34px] items-center justify-center gap-1.5 whitespace-nowrap rounded-lg px-[14px] font-medium transition-colors; }
+  .btn-primario { @apply btn bg-primaria-700 text-white hover:bg-primaria-hover; }
+  .btn-secundario { @apply btn border border-gray-300 bg-white text-gray-700 hover:bg-gray-100; }
   .link-acao { @apply font-medium text-primaria-700 hover:text-primaria-900 hover:underline; }
   .link-perigo { @apply font-medium text-red-700 hover:text-red-800 hover:underline; }
-  .cartao { @apply rounded-xl border border-slate-200 bg-white shadow-sm; }
-  .selo { @apply inline-flex items-center rounded-full px-2.5 py-0.5 text-sm font-medium; }
-  .selo-ativo { @apply selo bg-green-50 text-green-700; }
-  .selo-inativo { @apply selo bg-slate-100 text-slate-600; }
-  .selo-erro { @apply selo bg-red-50 text-red-700; }
-  .selo-aviso { @apply selo bg-amber-50 text-amber-700; }
-  .selo-info { @apply selo bg-primaria-50 text-primaria-800; }
+  .cartao { @apply rounded-xl border border-gray-200 bg-white; }
+  /* Etiquetas de situacao: mesmo formato e cores das pilulas da lista de veiculos */
+  .selo, .selo-ativo, .selo-inativo, .selo-erro, .selo-aviso, .selo-info {
+    display: inline-block; border-radius: 999px; padding: 2px 10px; font-size: 12px; font-weight: 500; }
+  .selo-ativo { background: var(--ok-fundo); color: var(--ok-texto); }
+  .selo-inativo { background: var(--neutro-fundo); color: var(--neutro-texto); }
+  .selo-erro { background: var(--erro-fundo); color: var(--erro-texto); }
+  .selo-aviso { background: var(--aviso-fundo); color: var(--aviso-texto); }
+  .selo-info { background: var(--info-fundo); color: var(--info-texto); }
 }
+
+/* O que o Tailwind pinta com cores fixas (branco, avisos vermelho/verde/amarelo) acompanha o tema escuro */
+html[data-tema=escuro] .bg-white { background-color: var(--superficie); }
+html[data-tema=escuro] .border-white { border-color: var(--superficie); }
+html[data-tema=escuro] .text-primaria-700, html[data-tema=escuro] .link-acao { color: var(--p-800); }  /* links: azul mais claro no escuro */
+html[data-tema=escuro] .bg-red-50 { background-color: #3f1d1d; }
+html[data-tema=escuro] .border-red-200 { border-color: #7f1d1d; }
+html[data-tema=escuro] .text-red-700, html[data-tema=escuro] .text-red-800 { color: #fca5a5; }
+html[data-tema=escuro] .bg-green-50 { background-color: #10291d; }
+html[data-tema=escuro] .border-green-200 { border-color: #166534; }
+html[data-tema=escuro] .text-green-700 { color: #86efac; }
+html[data-tema=escuro] .bg-amber-50 { background-color: #33280c; }
+html[data-tema=escuro] .border-amber-200 { border-color: #92400e; }
+html[data-tema=escuro] .text-amber-700, html[data-tema=escuro] .text-amber-800 { color: #fcd34d; }
+
+/* Botao de tema no cabecalho: lua no tema claro (vai para o escuro), sol no escuro */
+html:not([data-tema=escuro]) .icone-sol, html[data-tema=escuro] .icone-lua { display: none; }
+
+/* ---------- Tabelas das listas (servidor): mesmas medidas da tabela de veiculos (Tabulator) ---------- */
+.tabela { width: 100%; border-collapse: separate; border-spacing: 0; font-size: 14px; color: var(--texto); text-align: left; }
+.tabela th { position: relative; padding: 12px 14px; background: var(--cabecalho); border-bottom: 1px solid var(--borda); color: var(--texto-fraco);
+  font-size: 13px; font-weight: 500; white-space: nowrap; vertical-align: top; }
+.tabela th .ordenavel { display: block; padding-right: 25px; color: inherit; text-decoration: none; }
+.tabela th .seta { position: absolute; right: 4px; top: 0; bottom: 0; margin: auto 0; width: 0; height: 0;
+  border-left: 6px solid transparent; border-right: 6px solid transparent; border-bottom: 6px solid var(--seta); }
+.tabela th[aria-sort=descending] .seta { border-bottom: none; border-top: 6px solid var(--seta); }
+.tabela td { height: 46px; box-sizing: border-box; padding: 12px 14px; border-bottom: 1px solid var(--linha); vertical-align: top; }
+.tabela.uma-linha td { white-space: nowrap; }  /* listas: cada registro numa linha, como na tabela de veiculos */
+.tabela tbody tr:hover td { background: var(--cabecalho); }
+.tabela td.vazio, .tabela td[colspan] { height: auto; padding: 24px 14px; text-align: center; color: var(--texto-vazio); white-space: normal; }
+.rodape-tabela { display: flex; justify-content: flex-end; align-items: center; padding: 5px 10px; border-top: 1px solid var(--borda);
+  background: var(--superficie); color: var(--texto-fraco); white-space: nowrap; }
+.pagina { display: inline-block; margin: 0 2px; padding: 2px 5px; border: 1px solid var(--borda); border-radius: 6px; background: var(--superficie);
+  color: var(--texto); font: 400 13.3333px Arial, sans-serif; text-decoration: none; }
+a.pagina:hover { background: var(--passar-mouse); }
+.pagina.ativa { background: #2563eb; border-color: #2563eb; color: #fff; }
+.pagina.desabilitada { opacity: .5; }
 
 /* HTMX: area que esta sendo atualizada fica esmaecida */
 #resultado { transition: opacity .15s ease; }
 #resultado.htmx-request { opacity: .5; pointer-events: none; }
 
-/* Menu lateral (estado em html[data-menu]) */
-.menu { width: 16rem; transition: width .15s ease; }
-html[data-menu=fechado] .menu { width: 4.25rem; }
-html[data-menu=fechado] .menu .rotulo, html[data-menu=fechado] .menu .grupo { display: none; }
+/* ---------- Menu lateral: 230px aberto, 64px so com icones (estado em html[data-menu]) ---------- */
+.menu { width: 230px; transition: width .2s ease; scrollbar-width: none; }  /* sem barra de rolagem visivel; rola com o mouse/dedo */
+.menu::-webkit-scrollbar { display: none; }
+html[data-menu=fechado] .menu { width: 64px; }
+html[data-menu=fechado] .menu .rotulo { display: none; }
 html[data-menu=fechado] .menu .item-menu { justify-content: center; padding-left: 0; padding-right: 0; }
 .fundo-menu { display: none; }
 
@@ -57,9 +129,33 @@ html[data-menu=fechado] .menu .chevron, html[data-menu=fechado] .menu .subitens 
 @media (max-width: 767px) {
   html[data-menu=fechado] .menu .chevron { display: block; }
   html[data-menu=fechado] .menu .subitens { display: block; }
-  .menu { position: fixed; top: 3.5rem; bottom: 0; left: 0; z-index: 40; width: 16rem !important; transition: transform .15s ease; box-shadow: 0 10px 30px rgb(15 23 42 / .15); }
+  .menu { position: fixed; top: 56px; bottom: 0; left: 0; z-index: 40; width: 230px !important; transition: transform .2s ease; }
   html[data-menu=fechado] .menu { transform: translateX(-100%); }
-  html[data-menu=fechado] .menu .rotulo, html[data-menu=fechado] .menu .grupo { display: inline; }
-  html[data-menu=fechado] .menu .item-menu { justify-content: flex-start; padding-left: .75rem; padding-right: .75rem; }
-  html[data-menu=aberto] .fundo-menu { display: block; position: fixed; inset: 3.5rem 0 0 0; z-index: 30; background: rgb(15 23 42 / .4); }
+  html[data-menu=fechado] .menu .rotulo { display: inline; }
+  html[data-menu=fechado] .menu .item-menu { justify-content: flex-start; padding-left: 12px; padding-right: 12px; }
+  html[data-menu=aberto] .fundo-menu { display: block; position: fixed; inset: 56px 0 0 0; z-index: 30; background: rgb(17 24 39 / .4); }
 }
+
+/* ---------- Tabela de veiculos (Tabulator): regras do modelo aprovado ---------- */
+#tabela-veiculos { border: none !important; background: var(--superficie) !important; font-size: 14px; }
+#tabela-veiculos .tabulator-header { background: var(--cabecalho) !important; border-bottom: 1px solid var(--borda) !important; color: var(--texto-fraco) !important; }
+#tabela-veiculos .tabulator-header .tabulator-col { background: transparent !important; border-right: none !important; }
+#tabela-veiculos .tabulator-header .tabulator-col .tabulator-col-content { padding: 12px 14px; }
+#tabela-veiculos .tabulator-col-title { font-weight: 500; font-size: 13px; }
+#tabela-veiculos .tabulator-row { background: var(--superficie) !important; color: var(--texto) !important; border-bottom: 1px solid var(--linha) !important; min-height: 46px; }
+#tabela-veiculos .tabulator-row:hover { background: var(--cabecalho) !important; }
+#tabela-veiculos .tabulator-row .tabulator-cell { border-right: none !important; padding: 12px 14px; }
+#tabela-veiculos .tabulator-footer { background: var(--superficie) !important; border-top: 1px solid var(--borda) !important; color: var(--texto-fraco) !important; }
+#tabela-veiculos .tabulator-footer .tabulator-page { font: 400 13.3333px Arial, sans-serif; background: var(--superficie) !important; color: var(--texto) !important; border: 1px solid var(--borda) !important; border-radius: 6px; }
+#tabela-veiculos .tabulator-footer .tabulator-page.active { background: #2563eb !important; color: #fff !important; border-color: #2563eb !important; }
+#tabela-veiculos .tabulator-col .tabulator-arrow { border-bottom-color: var(--seta) !important; border-top-color: var(--seta) !important; }
+#tabela-veiculos .tabulator-placeholder .tabulator-placeholder-contents { color: var(--texto-vazio); }
+
+/* Etiquetas de situacao (pilulas) e icones de acao da tabela */
+.pilula { display: inline-block; border-radius: 999px; padding: 2px 10px; font-size: 12px; font-weight: 500; }
+.pilula-operacao { background: var(--ok-fundo); color: var(--ok-texto); }
+.pilula-manutencao { background: var(--aviso-fundo); color: var(--aviso-texto); }
+.pilula-atrasada { background: var(--erro-fundo); color: var(--erro-texto); }
+.pilula-inativa { background: var(--neutro-fundo); color: var(--neutro-texto); }
+.acao-linha { margin-right: 12px; color: var(--texto-fraco); cursor: pointer; text-decoration: none; }
+.acao-linha i { font-size: 18px; }  /* tamanho no icone (e nao no link) para a linha ficar com 46px */

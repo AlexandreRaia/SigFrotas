@@ -34,7 +34,8 @@ A frota inteira cadastrada e conferida, com os dados de que manutenção, tráfe
 - **O km nunca diminui** (regra 4): depois do cadastro, só muda por **leitura** (`registrar_leitura`), que trava o veículo, grava o histórico e recusa km ou horímetro menor. O formulário de edição não tem o campo de km.
 - Trocar a secretaria, a unidade ou o centro de custo fecha a lotação anterior e abre a nova (histórico).
 - Baixa exige data e motivo. Unidade precisa pertencer à secretaria.
-- **Marcas, modelos e combustíveis são globais** (compartilhados por todas as prefeituras): só se acrescenta, sem editar nem apagar; nomes não repetem (sem diferenciar maiúsculas).
+- **Marcas, modelos e combustíveis são globais** (compartilhados por todas as prefeituras); nomes não repetem (sem diferenciar maiúsculas; um modelo pode repetir em outra marca).
+- **Marcas e modelos têm duas telas separadas** (Frota > Marcas e Frota > Modelos), com lista, busca, cadastro e edição para quem tem `frota.gerir`. Fluxo: cadastrar a marca → a tela já abre os modelos dela → o botão **+** abre o formulário com a marca escolhida. Na lista de marcas, o ícone do carro leva aos modelos da marca; na de modelos, o filtro **Marca** mostra só os dela e a coluna **Veículos** conta quantos veículos da prefeitura usam o modelo. Não há inativar nem apagar (um modelo em uso por veículo não pode ser apagado). **Atenção:** como o catálogo é compartilhado, corrigir um nome vale para todas as prefeituras.
 
 ## 5. Quem vê e faz o quê
 

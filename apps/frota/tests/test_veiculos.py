@@ -122,21 +122,29 @@ class VeiculosTelasTest(TelasTest):
     def test_gestor_unidade_ve_so_a_propria_secretaria(self):
         self.entrar_como(self.gestor_unidade_a, 'a')
         resposta = self.client.get('/veiculos/')
-        self.assertContains(resposta, f'/veiculos/{self.veiculo_a.pk}/')
-        self.assertNotContains(resposta, f'/veiculos/{self.veiculo2_a.pk}/')
+        ids = self.ids_da_lista()
+        self.assertIn(self.veiculo_a.pk, ids)
+        self.assertNotIn(self.veiculo2_a.pk, ids)
         self.assertEqual(self.client.get(f'/veiculos/{self.veiculo2_a.pk}/').status_code, 404)
-        self.assertNotContains(resposta, 'Novo</a>')
+        self.assertNotContains(resposta, '/veiculos/novo/')
+
+    def ids_da_lista(self, parametros=''):
+        """Os veiculos que a tabela recebe (JSON), ja com o escopo do perfil aplicado."""
+        return {v['id'] for v in self.client.get('/veiculos/dados/' + parametros).json()}
 
     def test_fiscal_ve_so_os_veiculos_dos_seus_centros(self):
         self.entrar_como(self.fiscal_a, 'a')
-        resposta = self.client.get('/veiculos/')
-        self.assertContains(resposta, f'/veiculos/{self.veiculo_a.pk}/')
-        self.assertNotContains(resposta, f'/veiculos/{self.veiculo2_a.pk}/')
+        ids = self.ids_da_lista()
+        self.assertIn(self.veiculo_a.pk, ids)
+        self.assertNotIn(self.veiculo2_a.pk, ids)
 
     def test_consulta_ve_tudo_mas_nao_altera(self):
         self.entrar_como(self.consulta_a, 'a')
-        resposta = self.client.get('/veiculos/')
-        self.assertContains(resposta, f'/veiculos/{self.veiculo2_a.pk}/')
+        self.assertIn(self.veiculo2_a.pk, self.ids_da_lista())
+        dados = {v['id']: v for v in self.client.get('/veiculos/dados/').json()}
+        self.assertEqual(dados[self.veiculo2_a.pk]['url_editar'], '')
+        self.assertEqual(dados[self.veiculo2_a.pk]['url_alternar'], '')
+        self.assertEqual(self.client.post(f'/veiculos/{self.veiculo_a.pk}/alternar-situacao/').status_code, 403)
         self.assertEqual(self.client.post('/veiculos/novo/', self.dados()).status_code, 403)
         self.assertEqual(self.client.post(f'/veiculos/{self.veiculo_a.pk}/leituras/nova/', {'odometro': '5000'}).status_code, 403)
 
@@ -147,13 +155,29 @@ class VeiculosTelasTest(TelasTest):
     def test_outra_prefeitura_nao_ve_o_veiculo(self):
         self.entrar_como(self.admin_a, 'a')
         self.assertEqual(self.client.get(f'/veiculos/{self.veiculo_b.pk}/').status_code, 404)
-        self.assertNotContains(self.client.get('/veiculos/?busca=XYZ'), f'/veiculos/{self.veiculo_b.pk}/')
+        self.assertNotIn(self.veiculo_b.pk, self.ids_da_lista())
+        # nem inativar o veiculo de outra prefeitura
+        self.assertEqual(self.client.post(f'/veiculos/{self.veiculo_b.pk}/alternar-situacao/').status_code, 404)
 
-    def test_busca_e_filtro(self):
+    def test_lista_traz_todos_os_veiculos_para_a_tabela_filtrar(self):
         self.entrar_como(self.gestor_a, 'a')
-        self.assertContains(self.client.get('/veiculos/?busca=abc1d'), f'/veiculos/{self.veiculo_a.pk}/')
-        self.assertNotContains(self.client.get('/veiculos/?busca=abc1d'), f'/veiculos/{self.veiculo2_a.pk}/')
-        self.assertNotContains(self.client.get('/veiculos/?situacao=BAIXADO'), f'/veiculos/{self.veiculo_a.pk}/')
+        self.assertEqual(self.client.get('/veiculos/').status_code, 200)
+        ids = self.ids_da_lista()
+        self.assertIn(self.veiculo_a.pk, ids)
+        self.assertIn(self.veiculo2_a.pk, ids)
+
+    def test_inativar_e_reativar_preserva_o_veiculo(self):
+        self.entrar_como(self.gestor_a, 'a')
+        url = f'/veiculos/{self.veiculo_a.pk}/alternar-situacao/'
+        self.assertEqual(self.client.post(url).json()['situacao'], 'INATIVO')
+        self.assertIn(self.veiculo_a.pk, self.ids_da_lista())
+        self.assertEqual(self.client.post(url).json()['situacao'], 'DISPONIVEL')
+
+    def test_nao_inativa_veiculo_em_manutencao_ou_baixado(self):
+        self.entrar_como(self.gestor_a, 'a')
+        for situacao in ('MANUTENCAO', 'BAIXADO'):
+            Veiculo.objects.filter(pk=self.veiculo_a.pk).update(situacao=situacao)
+            self.assertEqual(self.client.post(f'/veiculos/{self.veiculo_a.pk}/alternar-situacao/').status_code, 400)
 
     # --- pagina do veiculo ---
     def test_registra_leitura_pela_pagina_e_recusa_km_menor(self):
@@ -200,34 +224,108 @@ class VeiculosTelasTest(TelasTest):
 
 
 class MarcasModelosTest(TelasTest):
-    def test_gestor_cadastra_marca_e_modelo(self):
+    """Marcas e modelos: duas listas separadas, catalogo compartilhado por todas as prefeituras."""
+
+    def test_cria_a_marca_e_cai_nos_modelos_dela_para_adicionar(self):
         self.entrar_como(self.gestor_a, 'a')
-        self.client.post('/marcas/', {'acao': 'marca', 'nome': 'Fiat'})
+        resposta = self.client.post('/marcas/novo/', {'nome': 'Fiat'})
         marca = Marca.objects.get(nome='Fiat')
-        self.client.post('/marcas/', {'acao': 'modelo', 'marca': marca.pk, 'nome': 'Uno'})
+        self.assertRedirects(resposta, f'/modelos/?marca={marca.pk}')
+        # o "+" da lista de modelos ja leva a marca escolhida para o formulario
+        self.assertContains(self.client.get(f'/modelos/?marca={marca.pk}'), f'/modelos/novo/?marca={marca.pk}')
+        formulario = self.client.get(f'/modelos/novo/?marca={marca.pk}')
+        self.assertEqual(formulario.context['form'].initial['marca'], str(marca.pk))
+        resposta = self.client.post('/modelos/novo/', {'marca': marca.pk, 'nome': 'Uno'})
+        self.assertRedirects(resposta, f'/modelos/?marca={marca.pk}')
         self.assertEqual(str(Modelo.objects.get(nome='Uno')), 'Fiat Uno')
-        self.assertContains(self.client.get('/marcas/'), 'Uno')
+
+    def test_lista_de_marcas_mostra_quantos_modelos_e_o_atalho(self):
+        fiat = Marca.objects.create(nome='Fiat')
+        Marca.objects.create(nome='Ford')
+        Modelo.objects.create(marca=fiat, nome='Uno')
+        Modelo.objects.create(marca=fiat, nome='Strada')
+        self.entrar_como(self.gestor_a, 'a')
+        resposta = self.client.get('/marcas/')
+        self.assertEqual([(m.nome, m.total_modelos) for m in resposta.context['object_list']], [('Fiat', 2), ('Ford', 0)])
+        self.assertContains(resposta, f'/modelos/?marca={fiat.pk}')
+        self.assertNotContains(resposta, 'Uno')   # os modelos ficam na lista de modelos
+
+    def test_lista_de_modelos_filtra_por_marca_e_busca(self):
+        fiat, ford = Marca.objects.create(nome='Fiat'), Marca.objects.create(nome='Ford')
+        Modelo.objects.create(marca=fiat, nome='Uno')
+        Modelo.objects.create(marca=ford, nome='Ka')
+        self.entrar_como(self.gestor_a, 'a')
+        nomes = lambda url: [str(m) for m in self.client.get(url).context['object_list']]
+        self.assertEqual(nomes('/modelos/'), ['Fiat Uno', 'Ford Ka'])
+        self.assertEqual(nomes(f'/modelos/?marca={ford.pk}'), ['Ford Ka'])
+        self.assertEqual(nomes('/modelos/?busca=uno'), ['Fiat Uno'])
+        self.assertEqual(nomes('/modelos/?ordem=-nome'), ['Fiat Uno', 'Ford Ka'])
+
+    def test_conta_os_veiculos_de_cada_modelo(self):
+        self.entrar_como(self.gestor_a, 'a')
+        modelo = self.veiculo_a.modelo or Modelo.objects.create(marca=Marca.objects.create(nome='Fiat'), nome='Uno')
+        Veiculo.objects.filter(pk=self.veiculo_a.pk).update(modelo=modelo)
+        linha = next(m for m in self.client.get('/modelos/').context['object_list'] if m.pk == modelo.pk)
+        self.assertGreaterEqual(linha.em_uso, 1)
+
+    def test_edita_marca_e_modelo(self):
+        marca = Marca.objects.create(nome='Volkwagen')
+        modelo = Modelo.objects.create(marca=marca, nome='Gool')
+        self.entrar_como(self.gestor_a, 'a')
+        self.assertRedirects(self.client.post(f'/marcas/{marca.pk}/editar/', {'nome': 'Volkswagen'}), '/marcas/')
+        self.assertRedirects(self.client.post(f'/modelos/{modelo.pk}/editar/', {'marca': marca.pk, 'nome': 'Gol'}),
+                             f'/modelos/?marca={marca.pk}')
+        marca.refresh_from_db(), modelo.refresh_from_db()
+        self.assertEqual((marca.nome, modelo.nome), ('Volkswagen', 'Gol'))
 
     def test_repeticao_e_recusada_sem_diferenciar_maiusculas(self):
         self.entrar_como(self.gestor_a, 'a')
-        self.client.post('/marcas/', {'acao': 'marca', 'nome': 'Fiat'})
-        self.assertContains(self.client.post('/marcas/', {'acao': 'marca', 'nome': 'FIAT'}), 'já existe')
+        self.client.post('/marcas/novo/', {'nome': 'Fiat'})
+        self.assertContains(self.client.post('/marcas/novo/', {'nome': 'FIAT'}), 'já existe')
         marca = Marca.objects.get(nome='Fiat')
-        self.client.post('/marcas/', {'acao': 'modelo', 'marca': marca.pk, 'nome': 'Uno'})
-        self.assertContains(self.client.post('/marcas/', {'acao': 'modelo', 'marca': marca.pk, 'nome': 'uno'}), 'já existe')
+        self.client.post('/modelos/novo/', {'marca': marca.pk, 'nome': 'Uno'})
+        self.assertContains(self.client.post('/modelos/novo/', {'marca': marca.pk, 'nome': 'uno'}), 'já existe')
+        # outra marca pode ter um modelo com o mesmo nome
+        outra = Marca.objects.create(nome='Ford')
+        self.assertEqual(self.client.post('/modelos/novo/', {'marca': outra.pk, 'nome': 'Uno'}).status_code, 302)
+
+    def test_ao_editar_pode_manter_o_proprio_nome_mas_nao_o_de_outro(self):
+        fiat, ford = Marca.objects.create(nome='Fiat'), Marca.objects.create(nome='Ford')
+        self.entrar_como(self.gestor_a, 'a')
+        self.assertEqual(self.client.post(f'/marcas/{fiat.pk}/editar/', {'nome': 'Fiat'}).status_code, 302)   # sem mudar
+        self.assertContains(self.client.post(f'/marcas/{fiat.pk}/editar/', {'nome': 'ford'}), 'já existe')
 
     def test_catalogo_e_compartilhado_entre_prefeituras(self):
         self.entrar_como(self.gestor_a, 'a')
-        self.client.post('/marcas/', {'acao': 'marca', 'nome': 'Volkswagen'})
+        self.client.post('/marcas/novo/', {'nome': 'Volkswagen'})
+        marca = Marca.objects.get(nome='Volkswagen')
         self.client.post('/sair/')
         self.entrar_como(self.consulta_b, 'b')
         self.assertContains(self.client.get('/marcas/'), 'Volkswagen')
+        self.assertContains(self.client.get(f'/modelos/?marca={marca.pk}'), 'Modelos')
+        self.client.post('/sair/')
+        self.entrar_como(self.gestor_b, 'b')     # a outra prefeitura tambem cadastra e edita no mesmo catalogo
+        self.assertEqual(self.client.post(f'/marcas/{marca.pk}/editar/', {'nome': 'VW'}).status_code, 302)
+        marca.refresh_from_db()
+        self.assertEqual(marca.nome, 'VW')
 
     def test_consulta_so_olha(self):
+        marca = Marca.objects.create(nome='Fiat')
         self.entrar_como(self.consulta_a, 'a')
-        self.assertEqual(self.client.get('/marcas/').status_code, 200)
-        self.assertEqual(self.client.post('/marcas/', {'acao': 'marca', 'nome': 'Ford'}).status_code, 403)
+        for url in ('/marcas/', '/modelos/'):
+            resposta = self.client.get(url)
+            self.assertEqual(resposta.status_code, 200)
+            self.assertNotContains(resposta, f'{url}novo/')   # sem o botao "+"
+        self.assertEqual(self.client.post('/marcas/novo/', {'nome': 'Ford'}).status_code, 403)
+        self.assertEqual(self.client.post(f'/marcas/{marca.pk}/editar/', {'nome': 'Fiatt'}).status_code, 403)
+        self.assertEqual(self.client.post('/modelos/novo/', {'marca': marca.pk, 'nome': 'Uno'}).status_code, 403)
         self.assertFalse(Marca.objects.filter(nome='Ford').exists())
+        self.assertEqual(Marca.objects.get(pk=marca.pk).nome, 'Fiat')
+
+    def test_quem_nao_ve_a_frota_nao_acessa(self):
+        self.entrar_como(self.solicitante_a, 'a')
+        self.assertEqual(self.client.get('/marcas/').status_code, 403)
+        self.assertEqual(self.client.get('/modelos/').status_code, 403)
 
 
 class CategoriasTest(TelasTest):

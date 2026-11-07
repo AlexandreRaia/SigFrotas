@@ -10,59 +10,76 @@
       var v = null;
       try { v = localStorage.getItem('menu'); } catch (e) {}
       document.documentElement.dataset.menu = window.innerWidth < 768 ? 'fechado' : (v || 'aberto');
+      // Tema claro (padrao) ou escuro: o que a pessoa escolheu no botao do cabecalho
+      var tema = null;
+      try { tema = localStorage.getItem('tema'); } catch (e) {}
+      if (tema === 'escuro') document.documentElement.dataset.tema = 'escuro';
     })();
   </script>
   <script src="{% static 'js/htmx.min.js' %}" defer></script>
-  <link rel="stylesheet" href="{% static 'css/app.css' %}">
+  <link rel="stylesheet" href="{% static 'vendor/remixicon/remixicon.css' %}">
+  {% block extra_head %}{% endblock %}
+  <link rel="stylesheet" href="{% estatico_versionado 'css/app.css' %}">
 </head>
-<body class="bg-slate-50 text-base leading-normal text-slate-900 antialiased" hx-headers='{"X-CSRFToken": "{{ csrf_token }}"}'>
+<body class="bg-fundo antialiased" hx-headers='{"X-CSRFToken": "{{ csrf_token }}"}'>
   {% if user.is_authenticated %}
-  <header class="sticky top-0 z-50 flex h-14 items-center gap-3 border-b border-slate-200 bg-white px-4 shadow-sm">
-    <button id="alternar-menu" type="button" class="rounded-lg p-2 text-slate-600 hover:bg-slate-100" title="Abrir ou recolher o menu" aria-label="Abrir ou recolher o menu">
-      <svg class="h-6 w-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
-    </button>
-    <a href="{% url 'inicio' %}" class="text-xl font-bold tracking-tight text-primaria-800">SigFrotas</a>
-    <a href="{% url 'notificacoes' %}" class="relative ml-auto rounded-lg p-2 text-slate-600 hover:bg-slate-100" title="Notificações" aria-label="Notificações{% if notificacoes_nao_lidas %} ({{ notificacoes_nao_lidas }} não lidas){% endif %}">
-      <svg class="h-6 w-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 8a6 6 0 0112 0c0 7 3 9 3 9H3s3-2 3-9M10.3 21a1.94 1.94 0 003.4 0"/></svg>
-      {% if notificacoes_nao_lidas %}<span class="absolute -right-0.5 -top-0.5 flex h-5 min-w-[1.25rem] items-center justify-center rounded-full bg-red-600 px-1 text-xs font-semibold text-white">{% if notificacoes_nao_lidas > 99 %}99+{% else %}{{ notificacoes_nao_lidas }}{% endif %}</span>{% endif %}
-    </a>
-    <span class="hidden text-slate-600 sm:inline">{{ user.nome }} <span class="text-slate-400">·</span> {{ user.municipio.nome }}</span>
-    <form method="post" action="{% url 'sair' %}" class="ml-auto sm:ml-0">{% csrf_token %}
-      <button class="btn-secundario" title="Sair">
-        <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M15 17l5-5-5-5M20 12H9M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/></svg>
-        <span class="hidden sm:inline">Sair</span>
+  <header class="sticky top-0 z-50 flex h-14 items-center justify-between border-b border-gray-200 bg-white px-5">
+    {# Medidas do modelo aprovado: logo 20px/600, icones 24px, 10px entre os itens da esquerda e 14px entre os da direita #}
+    <div class="flex items-center gap-[10px] text-[20px] font-semibold text-primaria-800">
+      <button id="alternar-menu" type="button" class="flex rounded-lg p-1 text-[24px] font-normal text-gray-600 hover:bg-gray-100" title="Abrir ou recolher o menu" aria-label="Abrir ou recolher o menu">
+        <i class="ri-menu-line" aria-hidden="true"></i>
       </button>
-    </form>
+      <a href="{% url 'inicio' %}" class="flex items-center gap-[10px]">
+        <i class="ri-truck-line text-[24px]" aria-hidden="true"></i><span class="hidden sm:inline">SigFrotas</span>
+      </a>
+    </div>
+    <div class="flex items-center gap-[14px]">
+      <button id="alternar-tema" type="button" class="flex rounded-lg p-1 text-[22px] text-gray-600 hover:bg-gray-100" title="Alternar entre tema claro e escuro" aria-label="Alternar entre tema claro e escuro">
+        <i class="icone-lua ri-moon-line" aria-hidden="true"></i><i class="icone-sol ri-sun-line" aria-hidden="true"></i>
+      </button>
+      <a href="{% url 'notificacoes' %}" class="relative flex rounded-lg p-1 text-[22px] text-gray-600 hover:bg-gray-100" title="Notificações" aria-label="Notificações{% if notificacoes_nao_lidas %} ({{ notificacoes_nao_lidas }} não lidas){% endif %}">
+        <i class="ri-notification-3-line" aria-hidden="true"></i>
+        {% if notificacoes_nao_lidas %}<span class="absolute right-[6px] top-[5px] h-2 w-2 rounded-full border border-white bg-red-600"></span>{% endif %}
+      </a>
+      <div class="whitespace-nowrap text-right leading-[1.25]" title="{{ user.municipio.nome }}">
+        <b class="block font-medium">{{ user.nome }}</b><small class="text-[12px] text-gray-500">{{ user.perfil.nome }}</small>
+      </div>
+      <span class="flex h-[34px] w-[34px] shrink-0 items-center justify-center rounded-full bg-primaria-50 text-[13px] font-medium text-primaria-800" title="{{ user.nome }} · {{ user.municipio.nome }}">{{ user|iniciais }}</span>
+      <form method="post" action="{% url 'sair' %}">{% csrf_token %}
+        <button class="flex h-9 w-9 items-center justify-center rounded-lg border border-gray-200 text-[18px] text-gray-600 hover:bg-gray-100" title="Sair" aria-label="Sair">
+          <i class="ri-logout-box-r-line" aria-hidden="true"></i>
+        </button>
+      </form>
+    </div>
   </header>
   {% endif %}
-  <div class="flex min-h-[calc(100vh-3.5rem)]">
+  <div class="flex min-h-[calc(100vh-56px)]">
     {% if user.is_authenticated %}
-    <aside class="menu shrink-0 overflow-y-auto border-r border-slate-200 bg-white p-3">
-      <nav class="space-y-1">
-  {% include 'menu_item.html' with url='inicio' chave='inicio' rotulo='Início' icone='M3 11l9-8 9 8M5 10v10h5v-6h4v6h5V10' %}
+    <aside class="menu sticky top-14 h-[calc(100vh-56px)] shrink-0 self-start overflow-y-auto border-r border-gray-200 bg-white px-[10px] py-3">
+      <nav>
+  {% include 'menu_item.html' with url='inicio' chave='inicio' rotulo='Início' icone='ri-home-5-line' %}
   {% with pagina=request.resolver_match.url_name %}
   {% if user|pode:'frota.ver' %}
-  <details data-grupo="frota" class="grupo-menu" {% if pagina|pagina_de:'veiculos' or pagina|pagina_de:'categorias_veiculo' or pagina|pagina_de:'marcas' %}open data-ativo{% endif %}>
-    <summary title="Frota" class="item-menu flex items-center gap-3 rounded-lg px-3 py-2.5 font-medium {% if pagina|pagina_de:'veiculos' or pagina|pagina_de:'categorias_veiculo' or pagina|pagina_de:'marcas' %}text-slate-900{% else %}text-slate-600 hover:bg-slate-100 hover:text-slate-900{% endif %}">
-      <svg class="h-6 w-6 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 13l2-6a2 2 0 011.9-1.4h10.2A2 2 0 0119 7l2 6v4a1 1 0 01-1 1h-1a2 2 0 01-4 0H9a2 2 0 01-4 0H4a1 1 0 01-1-1v-4zM3 13h18"/></svg>
+  <details data-grupo="frota" class="grupo-menu" {% if pagina|pagina_de:'veiculos' or pagina|pagina_de:'categorias_veiculo' or pagina|pagina_de:'marcas' or pagina|pagina_de:'modelos' %}open data-ativo{% endif %}>
+    <summary title="Frota" class="item-menu flex items-center gap-3 rounded-lg px-3 py-2.5 text-gray-700 hover:bg-gray-100">
+      <i class="ri-car-line shrink-0 text-[20px] text-gray-500" aria-hidden="true"></i>
       <span class="rotulo flex-1 whitespace-nowrap">Frota</span>
-      <svg class="chevron h-4 w-4 shrink-0 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>
     </summary>
-    <div class="subitens ml-5 mt-1 space-y-0.5 border-l border-slate-200 pl-3">
+    <div class="subitens">
       {% include 'menu_subitem.html' with url='veiculos_lista' chave='veiculos' rotulo='Veículos' %}
       {% include 'menu_subitem.html' with url='categorias_veiculo_lista' chave='categorias_veiculo' rotulo='Categorias' %}
-      {% include 'menu_subitem.html' with url='marcas_lista' chave='marcas' rotulo='Marcas e modelos' %}
+      {% include 'menu_subitem.html' with url='marcas_lista' chave='marcas' rotulo='Marcas' %}
+      {% include 'menu_subitem.html' with url='modelos_lista' chave='modelos' rotulo='Modelos' %}
     </div>
   </details>
   {% endif %}
   {% if user|pode:'manutencao.ver' %}
   <details data-grupo="manutencao" class="grupo-menu" {% if pagina|pagina_de:'chamados' or pagina|pagina_de:'smv' or pagina|pagina_de:'orcamentos' or pagina|pagina_de:'categorias_servico' %}open data-ativo{% endif %}>
-    <summary title="Manutenção" class="item-menu flex items-center gap-3 rounded-lg px-3 py-2.5 font-medium {% if pagina|pagina_de:'chamados' or pagina|pagina_de:'smv' or pagina|pagina_de:'orcamentos' or pagina|pagina_de:'categorias_servico' %}text-slate-900{% else %}text-slate-600 hover:bg-slate-100 hover:text-slate-900{% endif %}">
-      <svg class="h-6 w-6 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14.7 6.3a4 4 0 00-5.4 5.4L3 18l3 3 6.3-6.3a4 4 0 005.4-5.4l-2.5 2.5-2.2-.6-.6-2.2 2.3-2.7z"/></svg>
+    <summary title="Manutenção" class="item-menu flex items-center gap-3 rounded-lg px-3 py-2.5 text-gray-700 hover:bg-gray-100">
+      <i class="ri-tools-line shrink-0 text-[20px] text-gray-500" aria-hidden="true"></i>
       <span class="rotulo flex-1 whitespace-nowrap">Manutenção</span>
-      <svg class="chevron h-4 w-4 shrink-0 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>
     </summary>
-    <div class="subitens ml-5 mt-1 space-y-0.5 border-l border-slate-200 pl-3">
+    <div class="subitens">
       {% if user.perfil.codigo != 'OFICINA' %}{% include 'menu_subitem.html' with url='chamados_lista' chave='chamados' rotulo='Chamados' %}{% endif %}
       {% if user.perfil.codigo != 'MOTORISTA' %}{% include 'menu_subitem.html' with url='smv_lista' chave='smv' rotulo='SMVs' %}{% endif %}
       {% if user.perfil.codigo != 'MOTORISTA' %}{% include 'menu_subitem.html' with url='orcamentos_lista' chave='orcamentos' rotulo='Orçamentos' %}{% endif %}
@@ -72,24 +89,22 @@
   {% endif %}
   {% if user|pode:'pessoas.ver' %}
   <details data-grupo="pessoas" class="grupo-menu" {% if pagina|pagina_de:'motoristas' %}open data-ativo{% endif %}>
-    <summary title="Pessoas" class="item-menu flex items-center gap-3 rounded-lg px-3 py-2.5 font-medium {% if pagina|pagina_de:'motoristas' %}text-slate-900{% else %}text-slate-600 hover:bg-slate-100 hover:text-slate-900{% endif %}">
-      <svg class="h-6 w-6 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18v12H3zM8 11a2 2 0 100-4 2 2 0 000 4zM5.5 16c.5-1.5 1.5-2 2.5-2s2 .5 2.5 2M14 10h4M14 14h3"/></svg>
+    <summary title="Pessoas" class="item-menu flex items-center gap-3 rounded-lg px-3 py-2.5 text-gray-700 hover:bg-gray-100">
+      <i class="ri-user-3-line shrink-0 text-[20px] text-gray-500" aria-hidden="true"></i>
       <span class="rotulo flex-1 whitespace-nowrap">Pessoas</span>
-      <svg class="chevron h-4 w-4 shrink-0 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>
     </summary>
-    <div class="subitens ml-5 mt-1 space-y-0.5 border-l border-slate-200 pl-3">
+    <div class="subitens">
       {% include 'menu_subitem.html' with url='motoristas_lista' chave='motoristas' rotulo='Motoristas' %}
     </div>
   </details>
   {% endif %}
   {% if user|pode:'financeiro.ver' %}
   <details data-grupo="financeiro" class="grupo-menu" {% if pagina|pagina_de:'fornecedores' or pagina|pagina_de:'contratos' or pagina|pagina_de:'fiscais' or pagina|pagina_de:'empenhos' %}open data-ativo{% endif %}>
-    <summary title="Financeiro" class="item-menu flex items-center gap-3 rounded-lg px-3 py-2.5 font-medium {% if pagina|pagina_de:'fornecedores' or pagina|pagina_de:'contratos' or pagina|pagina_de:'fiscais' or pagina|pagina_de:'empenhos' %}text-slate-900{% else %}text-slate-600 hover:bg-slate-100 hover:text-slate-900{% endif %}">
-      <svg class="h-6 w-6 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 7h18v10H3zM12 14a2 2 0 100-4 2 2 0 000 4zM6 10h.01M18 14h.01"/></svg>
+    <summary title="Financeiro" class="item-menu flex items-center gap-3 rounded-lg px-3 py-2.5 text-gray-700 hover:bg-gray-100">
+      <i class="ri-wallet-3-line shrink-0 text-[20px] text-gray-500" aria-hidden="true"></i>
       <span class="rotulo flex-1 whitespace-nowrap">Financeiro</span>
-      <svg class="chevron h-4 w-4 shrink-0 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>
     </summary>
-    <div class="subitens ml-5 mt-1 space-y-0.5 border-l border-slate-200 pl-3">
+    <div class="subitens">
       {% include 'menu_subitem.html' with url='fornecedores_lista' chave='fornecedores' rotulo='Fornecedores' %}
       {% include 'menu_subitem.html' with url='contratos_lista' chave='contratos' rotulo='Contratos' %}
       {% include 'menu_subitem.html' with url='fiscais_lista' chave='fiscais' rotulo='Fiscais' %}
@@ -99,12 +114,11 @@
   {% endif %}
   {% if user|pode:'estrutura.gerir' %}
   <details data-grupo="estrutura" class="grupo-menu" {% if pagina|pagina_de:'secretarias' or pagina|pagina_de:'unidades' or pagina|pagina_de:'centros_custo' %}open data-ativo{% endif %}>
-    <summary title="Estrutura" class="item-menu flex items-center gap-3 rounded-lg px-3 py-2.5 font-medium {% if pagina|pagina_de:'secretarias' or pagina|pagina_de:'unidades' or pagina|pagina_de:'centros_custo' %}text-slate-900{% else %}text-slate-600 hover:bg-slate-100 hover:text-slate-900{% endif %}">
-      <svg class="h-6 w-6 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 21V4h10v17M14 9h6v12M2 21h20M7 8h4M7 12h4M7 16h4"/></svg>
+    <summary title="Estrutura" class="item-menu flex items-center gap-3 rounded-lg px-3 py-2.5 text-gray-700 hover:bg-gray-100">
+      <i class="ri-building-2-line shrink-0 text-[20px] text-gray-500" aria-hidden="true"></i>
       <span class="rotulo flex-1 whitespace-nowrap">Estrutura</span>
-      <svg class="chevron h-4 w-4 shrink-0 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>
     </summary>
-    <div class="subitens ml-5 mt-1 space-y-0.5 border-l border-slate-200 pl-3">
+    <div class="subitens">
       {% include 'menu_subitem.html' with url='secretarias_lista' chave='secretarias' rotulo='Secretarias' %}
       {% include 'menu_subitem.html' with url='unidades_lista' chave='unidades' rotulo='Unidades' %}
       {% include 'menu_subitem.html' with url='centros_custo_lista' chave='centros_custo' rotulo='Centros de custo' %}
@@ -113,12 +127,11 @@
   {% endif %}
   {% if user|pode:'frota.gerir' or user|pode:'pessoas.gerir' or user|pode:'usuarios.gerir' or user|pode:'auditoria.ver' %}
   <details data-grupo="administracao" class="grupo-menu" {% if pagina|pagina_de:'importacao' or pagina|pagina_de:'usuarios' or pagina|pagina_de:'auditoria' %}open data-ativo{% endif %}>
-    <summary title="Administração" class="item-menu flex items-center gap-3 rounded-lg px-3 py-2.5 font-medium {% if pagina|pagina_de:'importacao' or pagina|pagina_de:'usuarios' or pagina|pagina_de:'auditoria' %}text-slate-900{% else %}text-slate-600 hover:bg-slate-100 hover:text-slate-900{% endif %}">
-      <svg class="h-6 w-6 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6l8-3zM9 12l2 2 4-4"/></svg>
+    <summary title="Administração" class="item-menu flex items-center gap-3 rounded-lg px-3 py-2.5 text-gray-700 hover:bg-gray-100">
+      <i class="ri-shield-check-line shrink-0 text-[20px] text-gray-500" aria-hidden="true"></i>
       <span class="rotulo flex-1 whitespace-nowrap">Administração</span>
-      <svg class="chevron h-4 w-4 shrink-0 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>
     </summary>
-    <div class="subitens ml-5 mt-1 space-y-0.5 border-l border-slate-200 pl-3">
+    <div class="subitens">
       {% if user|pode:'frota.gerir' or user|pode:'pessoas.gerir' %}{% include 'menu_subitem.html' with url='importacao_inicio' chave='importacao' rotulo='Importação' %}{% endif %}
       {% if user|pode:'usuarios.gerir' %}{% include 'menu_subitem.html' with url='usuarios_lista' chave='usuarios' rotulo='Usuários' %}{% endif %}
       {% if user|pode:'auditoria.ver' %}{% include 'menu_subitem.html' with url='auditoria' chave='auditoria' rotulo='Auditoria' %}{% endif %}
@@ -130,15 +143,13 @@
     </aside>
     <div class="fundo-menu" id="fundo-menu"></div>
     {% endif %}
-    <main class="min-w-0 flex-1 p-4 sm:p-8">
-      <div class="mx-auto max-w-6xl">
-        <div id="mensagens" aria-live="polite">
-        {% for mensagem in messages %}
-          <p class="mb-5 rounded-lg border px-4 py-3 {% if mensagem.tags == 'error' %}border-red-200 bg-red-50 text-red-700{% else %}border-green-200 bg-green-50 text-green-700{% endif %}">{{ mensagem }}</p>
-        {% endfor %}
-        </div>
-        {% block conteudo %}{% endblock %}
+    <main class="min-w-0 flex-1 px-6 py-5">
+      <div id="mensagens" aria-live="polite">
+      {% for mensagem in messages %}
+        <p class="mb-4 rounded-lg border px-4 py-3 {% if mensagem.tags == 'error' %}border-red-200 bg-red-50 text-red-700{% else %}border-green-200 bg-green-50 text-green-700{% endif %}">{{ mensagem }}</p>
+      {% endfor %}
       </div>
+      {% block conteudo %}{% endblock %}
     </main>
   </div>
   {% if user.is_authenticated %}
@@ -148,11 +159,26 @@
       function definir(v) {
         raiz.dataset.menu = v;
         if (window.innerWidth >= 768) { try { localStorage.setItem('menu', v); } catch (e) {} }
+        setTimeout(function () { document.dispatchEvent(new Event('menu-alternado')); }, 250);  // tabelas se ajustam a nova largura
       }
       document.getElementById('alternar-menu').addEventListener('click', function () {
         definir(raiz.dataset.menu === 'aberto' ? 'fechado' : 'aberto');
       });
       document.getElementById('fundo-menu').addEventListener('click', function () { definir('fechado'); });
+
+      // Botao de tema: claro <-> escuro (a escolha fica salva neste navegador)
+      var botaoTema = document.getElementById('alternar-tema');
+      function mostrarTema() {
+        var escuro = raiz.dataset.tema === 'escuro';
+        botaoTema.title = botaoTema.ariaLabel = escuro ? 'Mudar para o tema claro' : 'Mudar para o tema escuro';
+      }
+      botaoTema.addEventListener('click', function () {
+        var escuro = raiz.dataset.tema !== 'escuro';
+        if (escuro) raiz.dataset.tema = 'escuro'; else delete raiz.dataset.tema;
+        try { localStorage.setItem('tema', escuro ? 'escuro' : 'claro'); } catch (e) {}
+        mostrarTema();
+      });
+      mostrarTema();
 
       // Grupos do menu: comecam todos fechados; o grupo da pagina atual abre sozinho (sem ser salvo).
       // So o que a PESSOA abre ou fecha com um clique fica salvo. (Chave nova: descarta o estado salvo por engano antes.)
@@ -181,12 +207,13 @@
       // Avisos das acoes feitas sem recarregar a pagina (HTMX).
       function mostrar(texto, tipo) {
         var p = document.createElement('p');
-        p.className = 'mb-5 rounded-lg border px-4 py-3 ' + (tipo === 'error'
+        p.className = 'mb-4 rounded-lg border px-4 py-3 ' + (tipo === 'error'
           ? 'border-red-200 bg-red-50 text-red-700' : 'border-green-200 bg-green-50 text-green-700');
         p.textContent = texto;
         document.getElementById('mensagens').prepend(p);
         setTimeout(function () { p.remove(); }, 6000);
       }
+      window.mostrarAviso = mostrar;
       document.body.addEventListener('mensagem', function (e) { mostrar(e.detail.texto, e.detail.tipo); });
       document.body.addEventListener('htmx:responseError', function (e) {
         var s = e.detail.xhr.status;
@@ -197,5 +224,6 @@
     })();
   </script>
   {% endif %}
+  {% block scripts %}{% endblock %}
 </body>
 </html>

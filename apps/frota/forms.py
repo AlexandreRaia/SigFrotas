@@ -51,7 +51,7 @@ class VeiculoForm(FormularioDaPrefeitura):
             'centro_custo': 'Define o fiscal e o saldo de empenho usados na manutenção.',
             'odometro_atual': 'Km de hoje. Depois do cadastro, o km só muda por leitura (registrada na página do veículo) e nunca diminui.',
             'km_entrada': 'Opcional.',
-            'modelo': 'Se não estiver na lista, cadastre em Marcas e modelos.',
+            'modelo': 'Se não estiver na lista, cadastre em Frota > Modelos.',
             'proprietario': 'Para veículos locados, cedidos ou estaduais.',
         }
 
@@ -115,14 +115,17 @@ class AnexoForm(forms.Form):
 
 
 class MarcaForm(forms.ModelForm):
+    """Marca e modelo sao catalogos globais (sem prefeitura): a view nao passa municipio_id."""
     class Meta:
         model = Marca
         fields = ['nome']
+        labels = {'nome': 'Nome da marca'}
+        help_texts = {'nome': 'Como aparece na lista de veículos. Depois de salvar, você adiciona os modelos dela.'}
         widgets = {'nome': forms.TextInput}
 
     def clean_nome(self):
         nome = self.cleaned_data['nome'].strip()
-        if Marca.objects.filter(nome__iexact=nome).exists():
+        if Marca.objects.filter(nome__iexact=nome).exclude(pk=self.instance.pk).exists():
             raise ValidationError('Essa marca já existe.')
         return nome
 
@@ -131,10 +134,14 @@ class ModeloForm(forms.ModelForm):
     class Meta:
         model = Modelo
         fields = ['marca', 'nome']
+        labels = {'nome': 'Nome do modelo'}
+        help_texts = {'nome': 'Sem repetir a marca. Exemplo: Uno, Strada, Accelo 815.'}
         widgets = {'nome': forms.TextInput}
 
     def clean(self):
         dados = super().clean()
-        if dados.get('marca') and dados.get('nome') and Modelo.objects.filter(marca=dados['marca'], nome__iexact=dados['nome'].strip()).exists():
+        repetido = (Modelo.objects.filter(marca=dados['marca'], nome__iexact=dados['nome'].strip()).exclude(pk=self.instance.pk)
+                    if dados.get('marca') and dados.get('nome') else Modelo.objects.none())
+        if repetido.exists():
             raise ValidationError('Esse modelo já existe nessa marca.')
         return dados

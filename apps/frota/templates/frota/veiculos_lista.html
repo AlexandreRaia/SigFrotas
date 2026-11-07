@@ -1,0 +1,125 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block titulo %}Veículos · SigFrotas{% endblock %}
+{% block extra_head %}<link rel="stylesheet" href="{% static 'vendor/tabulator/tabulator.min.css' %}">{% endblock %}
+{% block conteudo %}
+{# Filtro: uma linha, sem rotulos (o primeiro item de cada lista serve de rotulo) #}
+{# No celular a busca ocupa a primeira linha e os filtros descem; do tablet para cima, tudo em uma linha #}
+<div class="mb-[14px] flex flex-wrap items-center gap-2 rounded-xl border border-gray-200 bg-white px-[10px] py-2 sm:flex-nowrap">
+  <div class="relative min-w-0 basis-full sm:flex-1 sm:basis-auto">
+    <i class="ri-search-line pointer-events-none absolute left-[10px] top-1/2 -translate-y-1/2 text-[16px] text-gray-400" aria-hidden="true"></i>
+    <input id="busca" type="text" placeholder="Buscar por placa, prefixo ou modelo" autocomplete="off" aria-label="Buscar veículo"
+           class="h-[34px] w-full py-0 pl-8 pr-[10px]">
+  </div>
+  <select id="filtro-situacao" class="h-[34px] min-w-0 flex-1 !w-auto px-[10px] py-0 sm:flex-none" aria-label="Situação">
+    <option value="">Situação</option>
+    <option value="operacao">Em operação</option>
+    <option value="manutencao">Em manutenção</option>
+    <option value="atrasada">Revisão atrasada</option>
+    <option value="inativa">Inativo</option>
+  </select>
+  <select id="filtro-secretaria" class="h-[34px] min-w-0 flex-1 !w-auto px-[10px] py-0 sm:flex-none" aria-label="Secretaria">
+    <option value="">Secretaria</option>
+  </select>
+  {% if pode_gerir %}
+  <a href="{% url 'veiculos_novo' %}" title="Novo veículo" aria-label="Novo veículo"
+     class="flex h-[34px] w-[34px] shrink-0 items-center justify-center rounded-lg bg-primaria-700 text-white hover:bg-primaria-hover">
+    <i class="ri-add-line text-[20px]" aria-hidden="true"></i>
+  </a>
+  {% endif %}
+</div>
+
+<div class="overflow-hidden rounded-xl border border-gray-200 bg-white">
+  <div id="tabela-veiculos"></div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{% static 'vendor/tabulator/tabulator.min.js' %}"></script>
+<script>
+(function () {
+  var CSRF = "{{ csrf_token }}";
+  var campoBusca = document.getElementById('busca');
+  var filtroSituacao = document.getElementById('filtro-situacao');
+  var filtroSecretaria = document.getElementById('filtro-secretaria');
+
+  function esc(texto) { return String(texto == null ? '' : texto).replace(/[&<>"']/g, function (c) { return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
+
+  function acoes(celula) {
+    var v = celula.getData();
+    var html = '<a class="acao-linha" href="' + v.url_ver + '" title="Abrir" aria-label="Abrir"><i class="ri-eye-line"></i></a>';
+    if (v.url_editar && !v.inativo) html += '<a class="acao-linha" href="' + v.url_editar + '" title="Editar" aria-label="Editar"><i class="ri-edit-line"></i></a>';
+    if (v.url_alternar) {
+      // <a> e nao <button>: o botao ocupa mais altura e deixaria a linha maior que a do modelo
+      html += '<a href="#" role="button" class="acao-linha" data-alternar="' + v.url_alternar + '" data-placa="' + esc(v.placa) + '" data-inativo="' + (v.inativo ? '1' : '') + '"'
+        + ' title="' + (v.inativo ? 'Reativar' : 'Inativar') + '" aria-label="' + (v.inativo ? 'Reativar' : 'Inativar') + '">'
+        + '<i class="' + (v.inativo ? 'ri-refresh-line' : 'ri-forbid-line') + '"></i></a>';
+    }
+    return html;
+  }
+
+  var tabela = new Tabulator('#tabela-veiculos', {
+    ajaxURL: "{% url 'veiculos_dados' %}",
+    layout: 'fitColumns',
+    pagination: true,
+    paginationSize: 6,
+    height: 'auto',
+    placeholder: 'Nenhum veículo encontrado.',
+    initialSort: [{ column: 'prefixo', dir: 'asc' }],
+    locale: 'pt-br',
+    langs: { 'pt-br': { pagination: { first: '«', first_title: 'Primeira página', last: '»', last_title: 'Última página',
+                                      prev: '‹', prev_title: 'Página anterior', next: '›', next_title: 'Próxima página' } } },
+    columns: [
+      { title: 'Placa', field: 'placa', width: 120 },
+      { title: 'Prefixo', field: 'prefixo', width: 100 },
+      { title: 'Modelo', field: 'modelo', minWidth: 180 },
+      { title: 'Categoria', field: 'categoria', minWidth: 150 },
+      { title: 'Secretaria', field: 'secretaria', width: 120 },
+      { title: 'Km', field: 'km', hozAlign: 'right', width: 110,
+        formatter: function (c) { return Number(c.getValue()).toLocaleString('pt-BR'); } },
+      { title: 'Situação', field: 'situacao_rotulo', width: 170,
+        formatter: function (c) { var v = c.getData(); return '<span class="pilula pilula-' + v.situacao + '">' + esc(v.situacao_rotulo) + '</span>'; } },
+      { title: 'Ações', field: 'id', width: 120, headerSort: false, formatter: acoes },
+    ],
+  });
+
+  function aplicarFiltros() {
+    var q = campoBusca.value.trim().toLowerCase(), sit = filtroSituacao.value, sec = filtroSecretaria.value;
+    tabela.setFilter(function (v) {
+      if (sit && v.situacao !== sit) return false;
+      if (sec && v.secretaria !== sec) return false;
+      return !q || (v.placa + ' ' + v.prefixo + ' ' + v.modelo).toLowerCase().indexOf(q) !== -1;
+    });
+  }
+  tabela.on('dataLoaded', function (dados) {   // a lista de secretarias vem dos proprios veiculos
+    var atual = filtroSecretaria.value;
+    var siglas = Array.from(new Set(dados.map(function (v) { return v.secretaria; }).filter(Boolean))).sort();
+    filtroSecretaria.innerHTML = '<option value="">Secretaria</option>' + siglas.map(function (s) { return '<option>' + s + '</option>'; }).join('');
+    filtroSecretaria.value = siglas.indexOf(atual) !== -1 ? atual : '';
+  });
+  tabela.on('tableBuilt', function () {
+    campoBusca.addEventListener('input', aplicarFiltros);
+    filtroSituacao.addEventListener('change', aplicarFiltros);
+    filtroSecretaria.addEventListener('change', aplicarFiltros);
+  });
+
+  // Inativar / reativar (o historico do veiculo e preservado)
+  document.getElementById('tabela-veiculos').addEventListener('click', function (e) {
+    var botao = e.target.closest('[data-alternar]');
+    if (!botao) return;
+    e.preventDefault();
+    var inativo = botao.dataset.inativo === '1';
+    if (!confirm((inativo ? 'Reativar' : 'Inativar') + ' o veículo ' + botao.dataset.placa + '?')) return;
+    fetch(botao.dataset.alternar, { method: 'POST', headers: { 'X-CSRFToken': CSRF } })
+      .then(function (r) { return r.json().then(function (j) { return { ok: r.ok, j: j }; }); })
+      .then(function (r) {
+        if (r.ok) { tabela.replaceData(); window.mostrarAviso && window.mostrarAviso(inativo ? 'Veículo reativado.' : 'Veículo inativado.', 'ok'); }
+        else window.mostrarAviso && window.mostrarAviso(r.j.erro || 'Não foi possível concluir.', 'error');
+      })
+      .catch(function () { window.mostrarAviso && window.mostrarAviso('Sem conexão com o servidor.', 'error'); });
+  });
+
+  document.addEventListener('menu-alternado', function () { tabela.redraw(true); });   // menu recolhido/expandido muda a largura
+})();
+</script>
+{% endblock %}

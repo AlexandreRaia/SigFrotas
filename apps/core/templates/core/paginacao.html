@@ -1,9 +1,20 @@
-{% if is_paginated %}
-<div class="mt-5 flex items-center gap-4">
-  {% if page_obj.has_previous %}<a class="btn-secundario" href="?{{ filtros_url }}page={{ page_obj.previous_page_number }}"
-     hx-get="?{{ filtros_url }}page={{ page_obj.previous_page_number }}" hx-target="#resultado" hx-push-url="true" hx-indicator="#resultado">Anterior</a>{% endif %}
-  <span class="text-slate-600">Página {{ page_obj.number }} de {{ paginator.num_pages }}</span>
-  {% if page_obj.has_next %}<a class="btn-secundario" href="?{{ filtros_url }}page={{ page_obj.next_page_number }}"
-     hx-get="?{{ filtros_url }}page={{ page_obj.next_page_number }}" hx-target="#resultado" hx-push-url="true" hx-indicator="#resultado">Próxima</a>{% endif %}
+{% load sigfrotas %}
+{# Rodape da tabela, igual ao da lista de veiculos: « ‹ 1 2 3 › » alinhado a direita (lista vazia: sem rodape) #}
+{% if page_obj and paginator.count %}
+<div class="rodape-tabela">
+  {% if page_obj %}
+  {% with anterior=page_obj.has_previous proxima=page_obj.has_next %}
+  {% if anterior %}<a class="pagina" href="?{{ filtros_url }}page=1" hx-get="?{{ filtros_url }}page=1" hx-target="#resultado" hx-push-url="true" title="Primeira página">«</a>
+  <a class="pagina" href="?{{ filtros_url }}page={{ page_obj.previous_page_number }}" hx-get="?{{ filtros_url }}page={{ page_obj.previous_page_number }}" hx-target="#resultado" hx-push-url="true" title="Página anterior">‹</a>
+  {% else %}<span class="pagina desabilitada">«</span><span class="pagina desabilitada">‹</span>{% endif %}
+  {% for n in page_obj|paginas_proximas %}
+    {% if n == page_obj.number %}<span class="pagina ativa">{{ n }}</span>
+    {% else %}<a class="pagina" href="?{{ filtros_url }}page={{ n }}" hx-get="?{{ filtros_url }}page={{ n }}" hx-target="#resultado" hx-push-url="true">{{ n }}</a>{% endif %}
+  {% endfor %}
+  {% if proxima %}<a class="pagina" href="?{{ filtros_url }}page={{ page_obj.next_page_number }}" hx-get="?{{ filtros_url }}page={{ page_obj.next_page_number }}" hx-target="#resultado" hx-push-url="true" title="Próxima página">›</a>
+  <a class="pagina" href="?{{ filtros_url }}page={{ paginator.num_pages }}" hx-get="?{{ filtros_url }}page={{ paginator.num_pages }}" hx-target="#resultado" hx-push-url="true" title="Última página">»</a>
+  {% else %}<span class="pagina desabilitada">›</span><span class="pagina desabilitada">»</span>{% endif %}
+  {% endwith %}
+  {% endif %}
 </div>
 {% endif %}

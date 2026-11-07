@@ -7,7 +7,7 @@ from django.core.exceptions import FieldDoesNotExist, PermissionDenied
 from django.db.models import Q
 from django.http import FileResponse
 from django.shortcuts import get_object_or_404, redirect, render
-from django.urls import reverse
+from django.urls import NoReverseMatch, reverse
 from django.utils.http import url_has_allowed_host_and_scheme
 from django.views import View
 from django.views.decorators.http import require_POST
@@ -19,6 +19,7 @@ from .formatos import valor_da_coluna
 from .htmx import ParcialMixin, com_mensagem, e_htmx, redirecionar
 from .models import Anexo, Auditoria, CentroCusto, Municipio, Notificacao, Secretaria, Unidade, Usuario
 from .services import registrar_consulta
+from .templatetags.sigfrotas import selo
 
 
 def entrar(request):
@@ -69,9 +70,11 @@ class PermissaoMixin(LoginRequiredMixin):
 
 class DaPrefeituraMixin:
     """Filtra sempre pela prefeitura do usuario (alem da RLS do banco)."""
+    catalogo_global = False  # True so para marcas e modelos: catalogo compartilhado, sem municipio_id
 
     def get_queryset(self):
-        return super().get_queryset().filter(municipio_id=self.request.user.municipio_id)
+        consulta = super().get_queryset()
+        return consulta if self.catalogo_global else consulta.filter(municipio_id=self.request.user.municipio_id)
 
 
 class PaginacaoMixin:
@@ -85,9 +88,30 @@ class PaginacaoMixin:
         return contexto
 
 
+def tem_rota(nome):
+    """O cadastro tem essa tela? (ex.: chamados nao tem 'editar': muda pela pagina do chamado)"""
+    try:
+        reverse(nome, args=[0])
+        return True
+    except NoReverseMatch:
+        return False
+
+
+# Colunas de situacao: aparecem como etiqueta colorida (a cor vem do codigo, ex.: APROVADO -> verde)
+COLUNAS_COM_SELO = {'status', 'etapa', 'situacao', 'prioridade'}
+
+
 def valores_da_linha(objeto, colunas):
-    """colunas: (atributo, cabecalho) ou (atributo, cabecalho, 'moeda')."""
-    return [valor_da_coluna(objeto, coluna[0], coluna[2] if len(coluna) > 2 else None) for coluna in colunas]
+    """colunas: (atributo, cabecalho) ou (atributo, cabecalho, 'moeda'). Devolve (valor, classe do selo ou '')."""
+    valores = []
+    for coluna in colunas:
+        valor, classe = valor_da_coluna(objeto, coluna[0], coluna[2] if len(coluna) > 2 else None), ''
+        if valor is True or valor is False:
+            valor, classe = ('Ativo', 'selo-ativo') if valor else ('Inativo', 'selo-inativo')
+        elif coluna[0] in COLUNAS_COM_SELO and valor != '':
+            classe = selo(getattr(objeto, coluna[0]))
+        valores.append((valor, classe))
+    return valores
 
 
 class Lista(ParcialMixin, PermissaoMixin, DaPrefeituraMixin, PaginacaoMixin, ListView):
@@ -106,6 +130,9 @@ class Lista(ParcialMixin, PermissaoMixin, DaPrefeituraMixin, PaginacaoMixin, Lis
     tem_alternar = True  # False: o cadastro nao tem inativar/reativar
     ligar = ()          # select_related adicional (ex.: 'modelo__marca' quando o __str__ usa o relacionamento)
     permissao_gerir = None  # quem cria/edita (a lista pode ser vista por quem so tem "ver")
+    link_filho = None   # (url da lista filha, parametro do filtro, icone, titulo): atalho na linha (ex.: ver os modelos da marca)
+    repassar_ao_novo = ()  # filtros que o botao "+" leva para o formulario (ex.: a marca escolhida)
+    texto_vazio = 'Nada encontrado.'
 
     def get_queryset(self):
         consulta = super().get_queryset()
@@ -133,17 +160,60 @@ class Lista(ParcialMixin, PermissaoMixin, DaPrefeituraMixin, PaginacaoMixin, Lis
             valor = self.request.GET.get(campo, '')
             if valor:
                 consulta = consulta.filter(**{campo: valor})
+        ordem = self.request.GET.get('ordem', '')
+        if ordem.lstrip('-') in self.campos_ordenaveis():
+            consulta = consulta.order_by(ordem.replace('.', '__'), 'pk')
+        elif not consulta.ordered:  # com annotate() o Django ignora a ordem padrao do modelo
+            consulta = consulta.order_by(*self.model._meta.ordering, 'pk')
         return consulta
+
+    def campos_ordenaveis(self):
+        """Colunas que viram ordenacao no banco: campos do modelo (inclusive 'secretaria.sigla') e colunas anotadas."""
+        campos = set()
+        for coluna in self.colunas:
+            modelo, partes = self.model, coluna[0].split('.')
+            if self.anotacoes and coluna[0] in self.anotacoes:
+                campos.add(coluna[0])
+                continue
+            for i, parte in enumerate(partes):
+                try:
+                    campo = modelo._meta.get_field(parte)
+                except FieldDoesNotExist:
+                    break
+                if i < len(partes) - 1 and not campo.is_relation:
+                    break
+                modelo = campo.related_model
+            else:
+                campos.add(coluna[0])
+        return campos
+
+    def colunas_do_cabecalho(self):
+        """(rotulo, link para ordenar ou None, sentido atual): clicar alterna crescente/decrescente."""
+        ordem, ordenaveis, colunas = self.request.GET.get('ordem', ''), self.campos_ordenaveis(), []
+        for coluna in self.colunas:
+            if coluna[0] not in ordenaveis:
+                colunas.append((coluna[1], None, 'none'))
+                continue
+            sentido = 'ascending' if ordem == coluna[0] else 'descending' if ordem == '-' + coluna[0] else 'none'
+            parametros = self.request.GET.copy()
+            parametros.pop('page', None)
+            parametros['ordem'] = ('-' if sentido == 'ascending' else '') + coluna[0]
+            colunas.append((coluna[1], '?' + parametros.urlencode(), sentido))
+        return colunas
 
     def get_context_data(self, **kwargs):
         contexto = super().get_context_data(**kwargs)
         contexto['linhas'] = [(obj, valores_da_linha(obj, self.colunas)) for obj in contexto['object_list']]
         contexto.update(
-            base=self.base, titulo=self.titulo, cabecalhos=[c[1] for c in self.colunas],
+            base=self.base, titulo=self.titulo, cabecalhos=self.colunas_do_cabecalho(),
             tem_busca=bool(self.campos_busca), busca=self.request.GET.get('busca', ''),
             pode_gerir=self.request.user.tem_permissao(self.permissao_gerir or self.permissao),
-            detalhe=self.detalhe, tem_alternar=self.tem_alternar,
-            filtros=[(campo, rotulo, opcoes, self.request.GET.get(campo, '')) for campo, rotulo, opcoes in self.filtros],
+            detalhe=self.detalhe, tem_alternar=self.tem_alternar, tem_editar=tem_rota(f'{self.base}_editar'),
+            # opcoes pode ser uma funcao (lista que vem do banco, ex.: as marcas), chamada so ao abrir a tela
+            filtros=[(campo, rotulo, opcoes() if callable(opcoes) else opcoes, self.request.GET.get(campo, ''))
+                     for campo, rotulo, opcoes in self.filtros],
+            link_filho=self.link_filho, texto_vazio=self.texto_vazio,
+            parametros_novo='&'.join(f'{c}={self.request.GET[c]}' for c in self.repassar_ao_novo if self.request.GET.get(c, '').isdigit()),
         )
         contexto['pode_criar'] = self.pode_criar and contexto['pode_gerir']
         return contexto
@@ -154,10 +224,12 @@ class CadastroMixin(ParcialMixin, PermissaoMixin):
     template_parcial = 'core/_form.html'   # formulario com erros volta sozinho, sem recarregar a pagina
     base = ''
     titulo = ''
+    catalogo_global = False   # marcas e modelos: sem prefeitura (o formulario nao recebe municipio_id)
 
     def get_form_kwargs(self):
         kwargs = super().get_form_kwargs()
-        kwargs['municipio_id'] = self.request.user.municipio_id
+        if not self.catalogo_global:
+            kwargs['municipio_id'] = self.request.user.municipio_id
         return kwargs
 
     def get_success_url(self):
@@ -175,7 +247,14 @@ class CadastroMixin(ParcialMixin, PermissaoMixin):
 
 
 class Novo(CadastroMixin, CreateView):
-    pass
+    repassar_ao_novo = ()  # campos que podem vir preenchidos pela url (?marca=3)
+
+    def get_initial(self):
+        inicial = super().get_initial()
+        for campo in self.repassar_ao_novo:
+            if self.request.GET.get(campo, '').isdigit():
+                inicial[campo] = self.request.GET[campo]
+        return inicial
 
 
 class Editar(CadastroMixin, DaPrefeituraMixin, UpdateView):
@@ -203,25 +282,32 @@ class Alternar(PermissaoMixin, View):
         if e_htmx(request):
             linha = render(request, 'core/_linha.html', {
                 'obj': objeto, 'valores': valores_da_linha(objeto, self.colunas), 'base': self.base,
-                'pode_gerir': True, 'detalhe': self.detalhe, 'tem_alternar': True})
+                'pode_gerir': True, 'detalhe': self.detalhe, 'tem_alternar': True, 'tem_editar': tem_rota(f'{self.base}_editar')})
             return com_mensagem(linha, texto, tipo)
         getattr(messages, tipo)(request, texto)
         return redirect(f'{self.base}_lista')
 
 
 def rotas_cadastro(base, model, form, titulo, titulo_singular, colunas, permissao, *, ver=None, alternar=True,
-                   escopo=None, campos_busca=(), filtros=(), anotacoes=None, detalhe=False, ligar=()):
+                   escopo=None, campos_busca=(), filtros=(), anotacoes=None, detalhe=False, ligar=(),
+                   catalogo_global=False, link_filho=None, repassar_ao_novo=(), texto_vazio='Nada encontrado.'):
     """Gera lista/novo/editar/alternar de um cadastro.
 
     permissao: quem cria e edita. ver: quem enxerga a lista (padrao: a mesma). escopo: limita o que cada perfil ve.
     detalhe=True: a lista tem link para <base>_detalhe (a pagina de detalhe e escrita a parte).
+    catalogo_global=True: tabela compartilhada por todas as prefeituras (sem municipio_id): marcas e modelos.
+    link_filho / repassar_ao_novo: ver Lista.
     """
     rotas = dict(
         lista=Lista.as_view(model=model, base=base, titulo=titulo, colunas=colunas, permissao=ver or permissao,
                             permissao_gerir=permissao, escopo=escopo, campos_busca=campos_busca, filtros=filtros,
-                            anotacoes=anotacoes, detalhe=detalhe, tem_alternar=alternar, ligar=ligar),
-        novo=Novo.as_view(model=model, form_class=form, base=base, titulo=f'Novo: {titulo_singular}', permissao=permissao),
-        editar=Editar.as_view(model=model, form_class=form, base=base, titulo=f'Editar: {titulo_singular}', permissao=permissao),
+                            anotacoes=anotacoes, detalhe=detalhe, tem_alternar=alternar, ligar=ligar,
+                            catalogo_global=catalogo_global, link_filho=link_filho, repassar_ao_novo=repassar_ao_novo,
+                            texto_vazio=texto_vazio),
+        novo=Novo.as_view(model=model, form_class=form, base=base, titulo=f'Novo: {titulo_singular}', permissao=permissao,
+                          catalogo_global=catalogo_global, repassar_ao_novo=repassar_ao_novo),
+        editar=Editar.as_view(model=model, form_class=form, base=base, titulo=f'Editar: {titulo_singular}', permissao=permissao,
+                              catalogo_global=catalogo_global),
     )
     if alternar:
         rotas['alternar'] = Alternar.as_view(model=model, base=base, colunas=colunas, permissao=permissao, detalhe=detalhe)

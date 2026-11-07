@@ -1,25 +1,18 @@
-<tr id="linha-{{ obj.pk }}" class="hover:bg-slate-50 {% if obj.ativo is False %}text-slate-500{% endif %}">
-  {% for v in valores %}
-    <td class="px-4 py-3">
-      {% if v is True %}<span class="selo-ativo">Ativo</span>
-      {% elif v is False %}<span class="selo-inativo">Inativo</span>
-      {% else %}{{ v|default_if_none:"" }}{% endif %}
-    </td>
+<tr id="linha-{{ obj.pk }}">
+  {% for v, classe in valores %}
+    <td>{% if classe %}<span class="{{ classe }}">{{ v }}</span>{% else %}{{ v|default_if_none:"" }}{% endif %}</td>
   {% endfor %}
-  <td class="px-4 py-3">
-    <div class="flex items-center justify-end gap-4">
-      {% if detalhe %}<a href="{% url base|add:'_detalhe' obj.pk %}" class="link-acao">Abrir</a>{% endif %}
-      {% if pode_gerir %}
-        {% if not detalhe %}<a href="{% url base|add:'_editar' obj.pk %}" class="link-acao">Editar</a>{% endif %}
-        {% if base == 'usuarios' %}<a href="{% url 'usuarios_senha' obj.pk %}" class="link-acao">Senha</a>{% endif %}
-        {% if tem_alternar %}
-        <form method="post" action="{% url base|add:'_alternar' obj.pk %}"
-              hx-post="{% url base|add:'_alternar' obj.pk %}" hx-target="#linha-{{ obj.pk }}" hx-swap="outerHTML"
-              {% if obj.ativo %}hx-confirm="Inativar este cadastro?"{% endif %}>{% csrf_token %}
-          {% if obj.ativo %}<button class="link-perigo">Inativar</button>{% else %}<button class="link-acao">Reativar</button>{% endif %}
-        </form>
-        {% endif %}
+  {# Acoes em icones, como na lista de veiculos: abrir, editar, inativar/reativar (inativo nao se edita) #}
+  <td>
+    {% if detalhe %}<a class="acao-linha" href="{% url base|add:'_detalhe' obj.pk %}" title="Abrir" aria-label="Abrir"><i class="ri-eye-line"></i></a>{% endif %}
+    {% if link_filho %}<a class="acao-linha" href="{% url link_filho.0 %}?{{ link_filho.1 }}={{ obj.pk }}" title="{{ link_filho.3 }}" aria-label="{{ link_filho.3 }}"><i class="{{ link_filho.2 }}"></i></a>{% endif %}
+    {% if pode_gerir %}
+      {% if tem_editar and obj.ativo is not False %}<a class="acao-linha" href="{% url base|add:'_editar' obj.pk %}" title="Editar" aria-label="Editar"><i class="ri-edit-line"></i></a>{% endif %}
+      {% if base == 'usuarios' %}<a class="acao-linha" href="{% url 'usuarios_senha' obj.pk %}" title="Redefinir senha" aria-label="Redefinir senha"><i class="ri-key-2-line"></i></a>{% endif %}
+      {% if tem_alternar %}
+      <a href="#" role="button" class="acao-linha" hx-post="{% url base|add:'_alternar' obj.pk %}" hx-target="#linha-{{ obj.pk }}" hx-swap="outerHTML"
+         {% if obj.ativo %}hx-confirm="Inativar este cadastro?" title="Inativar" aria-label="Inativar"><i class="ri-forbid-line"></i>{% else %}title="Reativar" aria-label="Reativar"><i class="ri-refresh-line"></i>{% endif %}</a>
       {% endif %}
-    </div>
+    {% endif %}
   </td>
 </tr>

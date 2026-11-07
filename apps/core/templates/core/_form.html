@@ -5,7 +5,7 @@
   {% if form.non_field_errors %}<div class="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-red-700">{{ form.non_field_errors }}</div>{% endif %}
   {% for titulo, campos in form.agrupados %}
   <section class="cartao p-6">
-    <h2 class="mb-4 text-lg font-semibold">{{ titulo }}</h2>
+    <h2 class="mb-4 text-[16px] font-semibold">{{ titulo }}</h2>
     <div class="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
       {% for campo, largo in campos %}
       <div class="{% if largo %}sm:col-span-2 lg:col-span-3{% endif %}">
@@ -24,9 +24,9 @@
   </div>
 </form>
 {% else %}
-<form method="post" class="cartao max-w-xl space-y-5 p-6" hx-post="{{ request.path }}" hx-target="this" hx-swap="outerHTML">
+<form method="post" class="cartao flex max-w-xl flex-col gap-5 p-6" hx-post="{{ request.path }}" hx-target="this" hx-swap="outerHTML">
   {% csrf_token %}
-  {{ form.non_field_errors }}
+  {% if form.non_field_errors %}<div class="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-red-700">{{ form.non_field_errors }}</div>{% endif %}
   {% for campo in form %}
     <div>
       <label for="{{ campo.id_for_label }}" class="mb-1 block font-medium">{{ campo.label }}</label>
@@ -35,7 +35,7 @@
       {% if campo.errors %}<div class="mt-1 text-sm font-medium text-red-700">{{ campo.errors }}</div>{% endif %}
     </div>
   {% endfor %}
-  <div class="flex items-center gap-3 pt-2">
+  <div class="flex items-center gap-3">
     <button class="btn-primario">Salvar</button>
     <a href="{% url base|add:'_lista' %}" class="btn-secundario">Cancelar</a>
   </div>

@@ -3,7 +3,7 @@
 {% block titulo %}Chamado {{ chamado.numero }} · SigFrotas{% endblock %}
 {% block conteudo %}
 <div class="mb-4">
-  <h1 class="text-2xl font-semibold tracking-tight">Chamado {{ chamado.numero }}
+  <h1 class="text-[20px] font-semibold">Chamado {{ chamado.numero }}
     <span class="{{ chamado.status|selo }} ml-2 align-middle">{{ chamado.get_status_display }}</span>
     {% if chamado.prioridade == 'ALTA' or chamado.prioridade == 'URGENTE' %}<span class="{{ chamado.prioridade|selo }} ml-1 align-middle">{{ chamado.get_prioridade_display }}</span>{% endif %}</h1>
   <p class="text-slate-600">{{ chamado.veiculo }} · aberto por {{ chamado.aberto_por }} em {{ chamado.criado_em|date:"d/m/Y H:i" }}</p>
@@ -11,7 +11,7 @@
 
 <div class="mb-8 grid gap-6 lg:grid-cols-2">
   <section class="cartao p-5">
-    <h2 class="mb-3 text-lg font-semibold">Problema relatado</h2>
+    <h2 class="mb-3 text-[16px] font-semibold">Problema relatado</h2>
     <p class="whitespace-pre-line">{{ chamado.descricao }}</p>
     <dl class="mt-4 grid grid-cols-[9rem_1fr] gap-x-4 gap-y-1">
       <dt class="text-slate-600">Veículo</dt><dd>{% if user|pode:'frota.ver' %}<a class="link-acao" href="{% url 'veiculos_detalhe' chamado.veiculo.pk %}">{{ chamado.veiculo }}</a>{% else %}{{ chamado.veiculo }}{% endif %}</dd>
@@ -21,7 +21,7 @@
     </dl>
   </section>
   <section class="cartao p-5">
-    <h2 class="mb-3 text-lg font-semibold">Andamento</h2>
+    <h2 class="mb-3 text-[16px] font-semibold">Andamento</h2>
     {% if chamado.analisado_em %}
       <p>{{ chamado.get_status_display }} por <strong>{{ chamado.analisado_por|default:"-" }}</strong> em {{ chamado.analisado_em|date:"d/m/Y H:i" }}.</p>
       {% if chamado.motivo_decisao %}<p class="mt-2 text-slate-600">Motivo: {{ chamado.motivo_decisao }}</p>{% endif %}
@@ -37,7 +37,7 @@
 
 {% if pode_decidir or pode_cancelar %}
 <section class="cartao mb-8 p-5">
-  <h2 class="mb-3 text-lg font-semibold">Ações</h2>
+  <h2 class="mb-3 text-[16px] font-semibold">Ações</h2>
   <div class="flex flex-wrap items-start gap-3">
     {% if pode_decidir %}
       <a href="{% url 'smv_novo' %}?chamado={{ chamado.pk }}" class="btn-primario">Gerar SMV</a>

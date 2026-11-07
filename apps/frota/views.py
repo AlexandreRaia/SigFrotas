@@ -1,6 +1,7 @@
 from django.contrib import messages
-from django.core.exceptions import PermissionDenied, ValidationError
+from django.core.exceptions import ValidationError
 from django.db.models import Count
+from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.views import View
@@ -12,7 +13,7 @@ from apps.core.views import Editar, Novo, PermissaoMixin, rotas_cadastro
 
 from .forms import (AnexoForm, CategoriaVeiculoForm, EquipamentoForm, LeituraForm, MarcaForm, ModeloForm,
                     VeiculoForm)
-from .models import CategoriaVeiculo, Combustivel, Marca, Veiculo, VeiculoEquipamento
+from .models import CategoriaVeiculo, Marca, Modelo, Veiculo, VeiculoEquipamento
 
 GERIR = 'frota.gerir'
 VER = 'frota.ver'
@@ -34,7 +35,74 @@ ROTAS = {
         'categorias_veiculo', CategoriaVeiculo, CategoriaVeiculoForm, 'Categorias de veículo', 'categoria de veículo',
         (('nome', 'Nome'), ('cnh_minima', 'CNH mínima'), ('usa_horimetro', 'Usa horímetro'), ('ativo', 'Situação')),
         GERIR, ver=VER),
+    # Marcas e modelos: catalogo compartilhado por todas as prefeituras (sem municipio_id), sem inativar nem apagar.
+    # Fluxo: cria a marca -> cai na lista de modelos dela -> "+" ja abre o formulario com a marca escolhida.
+    'marcas': rotas_cadastro(
+        'marcas', Marca, MarcaForm, 'Marcas', 'marca', (('nome', 'Marca'), ('total_modelos', 'Modelos', 'numero')), GERIR, ver=VER,
+        alternar=False, catalogo_global=True, anotacoes={'total_modelos': Count('modelos')}, campos_busca=('nome',),
+        link_filho=('modelos_lista', 'marca', 'ri-car-line', 'Ver os modelos da marca')),
+    'modelos': rotas_cadastro(
+        'modelos', Modelo, ModeloForm, 'Modelos', 'modelo',
+        (('marca.nome', 'Marca'), ('nome', 'Modelo'), ('em_uso', 'Veículos', 'numero')), GERIR, ver=VER,
+        alternar=False, catalogo_global=True, anotacoes={'em_uso': Count('veiculo')}, campos_busca=('nome', 'marca__nome'),
+        filtros=(('marca', 'Marca', lambda: [(m.pk, m.nome) for m in Marca.objects.all()]),), repassar_ao_novo=('marca',),
+        texto_vazio='Nenhum modelo por aqui. Use o botão + para adicionar.'),
 }
+
+
+# Situacao do veiculo -> (cor da etiqueta, rotulo). "Revisao atrasada" (cor 'atrasada') chega com a manutencao preventiva (fase 6).
+ETIQUETA_DA_SITUACAO = {
+    'DISPONIVEL': ('operacao', 'Em operação'), 'EM_USO': ('operacao', 'Em operação'), 'RESERVA': ('operacao', 'Em operação'),
+    'MANUTENCAO': ('manutencao', 'Em manutenção'), 'INATIVO': ('inativa', 'Inativo'), 'BAIXADO': ('inativa', 'Baixado'),
+}
+
+
+class VeiculosLista(PermissaoMixin, View):
+    """Listagem de veiculos: pagina leve; a tabela (Tabulator) busca os dados em veiculos_dados."""
+    permissao = VER
+
+    def get(self, request):
+        return render(request, 'frota/veiculos_lista.html', {'pode_gerir': request.user.tem_permissao(GERIR)})
+
+
+class VeiculosDados(PermissaoMixin, View):
+    """Os veiculos que o usuario pode ver, em JSON, para a tabela. Respeita o escopo de cada perfil."""
+    permissao = VER
+
+    def get(self, request):
+        pode_gerir = request.user.tem_permissao(GERIR)
+        consulta = escopo_veiculos(request.user, Veiculo.objects.filter(municipio_id=request.user.municipio_id))
+        dados = []
+        for v in consulta.select_related('modelo__marca', 'categoria', 'secretaria'):
+            cor, rotulo = ETIQUETA_DA_SITUACAO.get(v.situacao, ('inativa', v.get_situacao_display()))
+            inativo = v.situacao in ('INATIVO', 'BAIXADO')
+            dados.append({
+                'id': v.pk, 'placa': v.placa, 'prefixo': v.prefixo, 'modelo': str(v.modelo) if v.modelo else '',
+                'categoria': v.categoria.nome if v.categoria else '', 'secretaria': v.secretaria.sigla if v.secretaria else '',
+                'km': v.odometro_atual, 'situacao': cor, 'situacao_rotulo': rotulo, 'inativo': inativo,
+                'url_ver': reverse('veiculos_detalhe', args=[v.pk]),
+                'url_editar': reverse('veiculos_editar', args=[v.pk]) if pode_gerir else '',
+                # em manutencao ou baixado nao se inativa nem se reativa por aqui
+                'url_alternar': reverse('veiculos_alternar_situacao', args=[v.pk])
+                if pode_gerir and v.situacao not in ('MANUTENCAO', 'BAIXADO') else '',
+            })
+        return JsonResponse(dados, safe=False)
+
+
+class VeiculoAlternarSituacao(PermissaoMixin, View):
+    """Inativar em vez de excluir: o veiculo e o historico ficam. Reativar volta para 'disponivel'."""
+    permissao = GERIR
+
+    def post(self, request, pk):
+        veiculo = get_object_or_404(Veiculo, pk=pk, municipio_id=request.user.municipio_id)
+        if veiculo.situacao == 'INATIVO':
+            veiculo.situacao = 'DISPONIVEL'
+        elif veiculo.situacao in ('DISPONIVEL', 'EM_USO', 'RESERVA'):
+            veiculo.situacao = 'INATIVO'
+        else:
+            return JsonResponse({'erro': 'Veículo em manutenção ou baixado não pode ser inativado nem reativado por aqui.'}, status=400)
+        veiculo.save(update_fields=['situacao', 'atualizado_em'])
+        return JsonResponse({'ok': True, 'situacao': veiculo.situacao})
 
 
 class VeiculoNovo(Novo):
@@ -121,29 +189,22 @@ class AnexoNovo(AcaoDoVeiculo):
         return 'Arquivo anexado.'
 
 
-# --- Marcas e modelos (catalogo compartilhado por todas as prefeituras: so se acrescenta) ----------------------
+# --- Marcas e modelos (catalogo compartilhado por todas as prefeituras) ----------------------------------------
 
-class MarcasModelos(PermissaoMixin, View):
-    permissao = VER
+def _modelos_da_marca(marca_id):
+    return f"{reverse('modelos_lista')}?marca={marca_id}"
 
-    def contexto(self, request, form_marca=None, form_modelo=None):
-        return {
-            'marcas': Marca.objects.annotate(total=Count('modelos')).prefetch_related('modelos'),
-            'combustiveis': Combustivel.objects.all(),
-            'pode_gerir': request.user.tem_permissao(GERIR),
-            'form_marca': form_marca or MarcaForm(), 'form_modelo': form_modelo or ModeloForm(),
-        }
 
-    def get(self, request):
-        return render(request, 'frota/marcas.html', self.contexto(request))
+class MarcaNova(Novo):
+    def get_success_url(self):   # marca criada: o proximo passo e cadastrar os modelos dela
+        return _modelos_da_marca(self.object.pk)
 
-    def post(self, request):
-        if not request.user.tem_permissao(GERIR):
-            raise PermissionDenied
-        marca = request.POST.get('acao') == 'marca'
-        form = (MarcaForm if marca else ModeloForm)(request.POST)
-        if form.is_valid():
-            form.save()
-            messages.success(request, 'Marca cadastrada.' if marca else 'Modelo cadastrado.')
-            return redirect('marcas_lista')
-        return render(request, 'frota/marcas.html', self.contexto(request, **{'form_marca' if marca else 'form_modelo': form}))
+
+class ModeloNovo(Novo):
+    def get_success_url(self):   # volta para os modelos da mesma marca, pronta para o proximo "+"
+        return _modelos_da_marca(self.object.marca_id)
+
+
+class ModeloEditar(Editar):
+    def get_success_url(self):
+        return _modelos_da_marca(self.object.marca_id)

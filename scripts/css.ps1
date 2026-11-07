@@ -13,4 +13,7 @@ if (-not (Test-Path $exe)) {
 }
 $argumentos = @('-i', 'static\src\input.css', '-o', 'static\css\app.css', '--minify')
 if ($Watch) { $argumentos += '--watch' }
+# O Tailwind escreve avisos (ex.: "caniuse-lite is outdated") na saida de erro; isso nao e falha
+$ErrorActionPreference = 'Continue'
 & $exe @argumentos
+if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }

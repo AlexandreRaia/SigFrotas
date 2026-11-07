@@ -11,7 +11,7 @@
 
 <div class="mb-8 grid gap-6 lg:grid-cols-2">
   <section class="cartao p-5">
-    <h2 class="mb-3 text-lg font-semibold">Dados funcionais</h2>
+    <h2 class="mb-3 text-[16px] font-semibold">Dados funcionais</h2>
     <dl class="grid grid-cols-[10rem_1fr] gap-x-4 gap-y-1">
       <dt class="text-slate-600">Prontuário</dt><dd>{{ motorista.prontuario }}</dd>
       <dt class="text-slate-600">Secretaria</dt><dd>{{ motorista.secretaria|default:"-" }}</dd>
@@ -21,7 +21,7 @@
     </dl>
   </section>
   <section class="cartao p-5">
-    <h2 class="mb-3 text-lg font-semibold">Habilitação</h2>
+    <h2 class="mb-3 text-[16px] font-semibold">Habilitação</h2>
     <dl class="grid grid-cols-[10rem_1fr] gap-x-4 gap-y-1">
       <dt class="text-slate-600">Categoria</dt><dd>{{ motorista.cnh_categoria|default:"-" }}</dd>
       <dt class="text-slate-600">Validade</dt><dd>{{ motorista.cnh_validade|data_br|default:"-" }}</dd>
@@ -35,7 +35,7 @@
   </section>
   {% if ve_dados %}
   <section class="cartao p-5">
-    <h2 class="mb-3 text-lg font-semibold">Dados pessoais</h2>
+    <h2 class="mb-3 text-[16px] font-semibold">Dados pessoais</h2>
     <dl class="grid grid-cols-[10rem_1fr] gap-x-4 gap-y-1">
       <dt class="text-slate-600">CPF</dt><dd>{{ motorista.cpf|cpf }}</dd>
       <dt class="text-slate-600">RG</dt><dd>{{ motorista.rg|default:"-" }} {{ motorista.rg_emissor }}</dd>
@@ -50,10 +50,10 @@
 
 <div class="mb-8 grid gap-6 lg:grid-cols-2">
   <section class="cartao p-5">
-    <h2 class="mb-3 text-lg font-semibold">Certificados</h2>
+    <h2 class="mb-3 text-[16px] font-semibold">Certificados</h2>
     <ul class="mb-3 divide-y divide-slate-100">
       {% for c in certificados %}<li class="flex items-center justify-between py-2"><span>{{ c.curso }}{% if c.validade %} <span class="text-slate-600">· válido até {{ c.validade|data_br }}</span>{% endif %}</span>
-        {% if pode_gerir %}<form method="post" action="{% url 'motoristas_certificado_excluir' motorista.pk c.pk %}">{% csrf_token %}<button class="link-perigo">Remover</button></form>{% endif %}</li>
+        {% if pode_gerir %}<form method="post" action="{% url 'motoristas_certificado_excluir' motorista.pk c.pk %}">{% csrf_token %}<button class="acao-linha text-red-700" title="Remover" aria-label="Remover"><i class="ri-delete-bin-line"></i></button></form>{% endif %}</li>
       {% empty %}<li class="py-2 text-slate-600">Nenhum certificado.</li>{% endfor %}
     </ul>
     {% if pode_gerir %}
@@ -64,10 +64,10 @@
     {% endif %}
   </section>
   <section class="cartao p-5">
-    <h2 class="mb-3 text-lg font-semibold">Férias, folgas e licenças</h2>
+    <h2 class="mb-3 text-[16px] font-semibold">Férias, folgas e licenças</h2>
     <ul class="mb-3 divide-y divide-slate-100">
       {% for a in afastamentos %}<li class="flex items-center justify-between py-2"><span>{{ a.get_tipo_display }} · {{ a.inicio|data_br }} a {{ a.fim|data_br }}</span>
-        {% if pode_gerir %}<form method="post" action="{% url 'motoristas_afastamento_excluir' motorista.pk a.pk %}">{% csrf_token %}<button class="link-perigo">Remover</button></form>{% endif %}</li>
+        {% if pode_gerir %}<form method="post" action="{% url 'motoristas_afastamento_excluir' motorista.pk a.pk %}">{% csrf_token %}<button class="acao-linha text-red-700" title="Remover" aria-label="Remover"><i class="ri-delete-bin-line"></i></button></form>{% endif %}</li>
       {% empty %}<li class="py-2 text-slate-600">Nenhum afastamento.</li>{% endfor %}
     </ul>
     {% if pode_gerir %}
@@ -82,7 +82,7 @@
 {% if ve_dados %}
 <div class="mb-8 grid gap-6 lg:grid-cols-2">
   <section class="cartao p-5">
-    <h2 class="mb-3 text-lg font-semibold">Penalidades</h2>
+    <h2 class="mb-3 text-[16px] font-semibold">Penalidades</h2>
     <ul class="mb-3 divide-y divide-slate-100">
       {% for p in penalidades %}<li class="py-2">{{ p.aplicada_em|data_br|default:"s/d" }}: {{ p.descricao }}{% if p.penalidade %} <span class="text-slate-600">→ {{ p.penalidade }}</span>{% endif %}</li>
       {% empty %}<li class="py-2 text-slate-600">Nenhuma penalidade registrada.</li>{% endfor %}
@@ -96,7 +96,7 @@
     {% endif %}
   </section>
   <section class="cartao p-5">
-    <h2 class="mb-3 text-lg font-semibold">Anexos</h2>
+    <h2 class="mb-3 text-[16px] font-semibold">Anexos</h2>
     <ul class="mb-3 divide-y divide-slate-100">
       {% for a in anexos %}<li class="flex items-center justify-between py-2"><a class="link-acao" href="{% url 'anexo_baixar' a.pk %}">{{ a.nome_arquivo }}</a><span class="text-slate-600">{{ a.categoria }} · {{ a.criado_em|date:"d/m/Y" }}</span></li>
       {% empty %}<li class="py-2 text-slate-600">Nenhum arquivo (CNH, certificados...).</li>{% endfor %}
